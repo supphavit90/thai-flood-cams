@@ -345,6 +345,7 @@ const I18N = {
     postFail: "Couldn't post the photo. Check your connection and try again.", tooMany: "Too many photos from this connection. Try again in an hour.",
     report: "Report photo", reported: "Reported. Photos with 3 reports are hidden.", openFull: "Open full size ↗",
     noPhotoHere: "Photos can only be posted in Thailand.",
+    floodHub: "Google Flood Hub forecast ↗",
     h24: "24 h", h48: "48 h", bank: "bank", critLine: "critical", trendLoading: "Loading trend…",
     noTrend: "No readings in this period.", noTrendBma: "No history yet. BMA readings are collected every 20 minutes and build up from 26 Sep.",
     trendFail: "Couldn't load the trend.",
@@ -395,6 +396,7 @@ const I18N = {
     postFail: "ส่งภาพไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองใหม่", tooMany: "ส่งภาพจากการเชื่อมต่อนี้มากเกินไป ลองใหม่ในอีก 1 ชั่วโมง",
     report: "รายงานภาพนี้", reported: "รายงานแล้ว ภาพที่ถูกรายงาน 3 ครั้งจะถูกซ่อน", openFull: "เปิดภาพขนาดเต็ม ↗",
     noPhotoHere: "ส่งภาพได้เฉพาะในประเทศไทย",
+    floodHub: "พยากรณ์จาก Google Flood Hub ↗",
     h24: "24 ชม.", h48: "48 ชม.", bank: "ตลิ่ง", critLine: "วิกฤต", trendLoading: "กำลังโหลดกราฟ…",
     noTrend: "ไม่มีข้อมูลในช่วงนี้", noTrendBma: "ยังไม่มีประวัติ ระบบเก็บค่าจาก กทม. ทุก 20 นาที เริ่มตั้งแต่ 26 ก.ย.",
     trendFail: "โหลดกราฟไม่สำเร็จ",
@@ -917,6 +919,7 @@ function placeSummary(p) {
     row(isLive(c) ? css("--live") : css("--still"), c.n, `${kmTxt(d)} · ${srcName(c.s)}`,
         isLive(c) ? t("liveVideo") : c.link ? "BMA ↗" : t("stillImage"), cams.indexOf(c))).join("") + "</ul>"
     : `<p class="none">${t("pNone")}</p>`) + "</section>");
+  out.push(`<a class="key" style="justify-content:center;text-decoration:none" href="${floodHub(p.y, p.x)}" target="_blank" rel="noopener">${t("floodHub")}</a>`);
   return out.join("");
 }
 
@@ -1047,6 +1050,9 @@ const esc = t => String(t ?? "").replace(/[&<>"]/g, ch => `&#${ch.charCodeAt(0)}
    BMA canals / roads / tunnels: public.bma_readings, filled every 20 min by the
    Mac job (BMA blocks servers abroad). Roads also merge thaiwater's history. */
 const trendCache = new Map();
+// Google Flood Hub: river forecasts (days ahead). Its API needs an approved key,
+// so for now this deep-links to the same spot on their site.
+const floodHub = (lat, lon) => `https://sites.research.google/floods/l/${(+lat).toFixed(4)}/${(+lon).toFixed(4)}/11`;
 const trendBox = spec => `<div class="trend" data-spec="${esc(JSON.stringify(spec))}"></div>`;
 const bkkDay = ms => new Date(ms).toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
 async function trendPoints(spec, hours) {
@@ -1185,7 +1191,8 @@ function renderFlood() {
         + `${lvl === 5 ? dot(OVER) + t("over") : dot(HIGH) + t("high")}<br>`
         + `<span class="reading">${esc(t("capacity", r.storage_percent))}<br>`
         + `${esc(r.diff_wl_bank_text)} ${esc(r.diff_wl_bank)} · ${esc(r.waterlevel_msl)} ${t("msl")}<br>`
-        + `${esc(r.waterlevel_datetime)}</span>` + trendBox({ type: "river", id: st.id })))
+        + `${esc(r.waterlevel_datetime)}</span>` + trendBox({ type: "river", id: st.id })
+        + `<a href="${floodHub(st.tele_station_lat, st.tele_station_long)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">${t("floodHub")}</a>`))
       .addTo(floodLayer);
   }
   // Sensors go quiet without saying so, and feeds can stall for hours (thaiwater
