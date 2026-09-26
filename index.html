@@ -746,6 +746,11 @@ function toast(msg) {
   clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 4000);
 }
 map.createPane("radar").style.zIndex = 250;   // above tiles, outside the dark-mode tile filter
+// Water sensors get their own pane above every marker (cameras, rain labels,
+// reports, photos): Leaflet otherwise draws circle markers *under* icon markers,
+// so the rain labels and report clusters buried them. Tooltips (650) and
+// popups (700) still sit on top.
+map.createPane("sensors").style.zIndex = 640;
 // CARTO's free basemap now stamps "API KEY REQUIRED" over every tile.
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: '&copy; OpenStreetMap', maxZoom: 19,
@@ -893,7 +898,7 @@ function renderDams() {
   const n = v => v == null ? "–" : (+v).toLocaleString(lang === "th" ? "th-TH" : "en-GB", { maximumFractionDigits: 1 });
   for (const d of dams) {
     const name = bi({ th: d.name_th, en: d.name_en }), lv = damLevel(d.pct), fill = Math.max(4, Math.min(100, d.pct || 0));
-    L.marker([d.lat, d.lon], { zIndexOffset: 400,
+    L.marker([d.lat, d.lon], { zIndexOffset: 400, pane: "sensors",
         icon: L.divIcon({ className: "", iconSize: [13, 17], html: `<span class="dam ${lv}"><i style="height:${fill}%"></i></span>` }) })
       .bindTooltip(`${name}: ${t("damFull", n(d.pct))}`, { direction: "top", offset: [0, -10] })
       .bindPopup(() => `<b>${esc(name)}</b><br>${t("damTitle")}`
@@ -1389,7 +1394,7 @@ function renderFlood() {
     if (!(lvl >= 4) || !st.tele_station_lat) continue;
     lvl === 5 ? over++ : high++;
     const name = bi(st.tele_station_name);
-    L.circleMarker([st.tele_station_lat, st.tele_station_long], {
+    L.circleMarker([st.tele_station_lat, st.tele_station_long], { pane: "sensors",
       radius: lvl === 5 ? 8 : 6, weight: 2, color: EDGE, fillColor: lvl === 5 ? OVER : HIGH, fillOpacity: 1,
     }).bindTooltip(`${name}: ${lvl === 5 ? t("tipOver") : t("tipHigh")}`)
       .bindPopup(() => (
@@ -1416,7 +1421,7 @@ function renderFlood() {
     if (!(c.lvl >= 3) || !fresh(bkkTime(c.ts))) continue;
     c.lvl === 4 ? ccrit++ : calert++;
     const word = c.lvl === 4 ? t("critical") : t("alert");
-    L.marker([c.y, c.x], { icon: canalIcon[c.lvl] })
+    L.marker([c.y, c.x], { icon: canalIcon[c.lvl], pane: "sensors" })
       .bindTooltip(`${bi(c)}: ${word}`)
       .bindPopup(() => `<b>${esc(bi(c))}</b><br>${dot(c.lvl === 4 ? OVER : ALERT)}${esc(word)}<br>`
         + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`
@@ -1426,7 +1431,7 @@ function renderFlood() {
   for (const r of roads) {
     if (!(r.cm > 0) || !fresh(r.t)) continue;
     wet++;
-    L.circleMarker([r.y, r.x], {
+    L.circleMarker([r.y, r.x], { pane: "sensors",
       radius: 5 + Math.min(r.cm, 40) / 5, weight: 2, color: EDGE, fillColor: ROAD, fillOpacity: 1,
     }).bindTooltip(`${bi(r)}: ${t("tipRoad", r.cm)}`)
       .bindPopup(() => `<b>${esc(bi(r))}</b><br>${dot(ROAD)}${esc(t("road", r.cm))}<br>`
@@ -1439,7 +1444,7 @@ function renderFlood() {
     if (!wetSides.length) continue;
     tun++;
     const cm = Math.max(...wetSides.map(sd => sd.cm));
-    L.circleMarker([tn.y, tn.x], { radius: 7 + Math.min(cm, 40) / 5, weight: 3, color: css("--ink"), fillColor: ROAD, fillOpacity: 1 })
+    L.circleMarker([tn.y, tn.x], { pane: "sensors", radius: 7 + Math.min(cm, 40) / 5, weight: 3, color: css("--ink"), fillColor: ROAD, fillOpacity: 1 })
       .bindTooltip(`${bi(tn)}: ${t("tipRoad", cm)}`)
       .bindPopup(() => `<b>${esc(bi(tn))}</b><br>${t("tunnel")}<br><span class="reading">`
         + tn.sides.map(sd => `${esc(sd.dir)}: ${esc(sd.cm)} ${t("cm")} · ${esc(when(sd.ts))}`).join("<br>") + "</span>"
