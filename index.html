@@ -83,6 +83,12 @@
   .dampct { height:8px; border-radius:4px; background:var(--well); overflow:hidden; margin:6px 0 }
   .dampct i { display:block; height:100%; background:var(--dam) }
   .dampct.high i { background:var(--alert) } .dampct.over i { background:var(--wl-over) }
+  /* Longdo road-flood report = warning triangle (road purple; sensors are circles) */
+  .lev { display:block; width:100%; height:100%; background:var(--road); clip-path:polygon(50% 0, 100% 100%, 0 100%);
+         filter:drop-shadow(0 0 1px var(--panel)) drop-shadow(0 1px 2px #0006) }
+  .lev.old { opacity:.45 }
+  .lev-cluster { display:grid; place-items:center; border-radius:6px; background:var(--road); color:#fff;
+                 border:2px solid var(--panel); box-shadow:var(--shadow); font:500 11px/1 var(--mono) }
   .rainpill { display:inline-grid; place-items:center; min-width:28px; height:18px; padding:0 5px; border-radius:9px;
               font:600 10px/1 var(--mono); border:1.5px solid var(--panel); box-shadow:0 1px 3px #0005; white-space:nowrap;
               transform:translate(-50%, -50%) }
@@ -289,6 +295,7 @@
       <div class="hours" id="rephours" role="group" data-i18n-aria="repWindow">
         <button data-h="1">1 h</button><button data-h="3">3 h</button><button data-h="6">6 h</button><button data-h="12">12 h</button><button data-h="24">24 h</button>
       </div>
+      <label class="switch"><input type="checkbox" id="l-events" checked><span><span data-i18n="lEvents">Road flood reports</span><small data-i18n="lEventsSrc">Longdo Traffic (iTIC) · last 6 h · every 10 min</small></span></label>
       <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · last 48 h</small></span></label>
     </div>
     <div class="group">
@@ -318,6 +325,7 @@
         <span><i class="dam high" style="width:9px;height:12px;display:inline-block"><i style="height:85%"></i></i><span data-i18n="kDam">Dam, fill = storage (amber 80%+, red over 100%)</span></span>
         <span><i class="rainpill r1" style="transform:none;min-width:22px;height:14px;font-size:9px">50</i><span data-i18n="kRain1">Heavy rain, 35–90 mm / 24 h</span></span>
         <span><i class="rainpill r2" style="transform:none;min-width:22px;height:14px;font-size:9px">120</i><span data-i18n="kRain2">Very heavy rain, 90 mm+ / 24 h</span></span>
+        <span><i class="lev" style="width:11px;height:10px;display:inline-block"></i><span data-i18n="kEvent">Road flood report (Longdo), faded once expired</span></span>
         <span><i class="dot" style="background:var(--road)"></i><span data-i18n="kRoad">Road flooded, sized by cm</span></span>
       </div>
       <p class="reading" style="margin:10px 0 0" data-i18n="areaHint">Long-press the map (right-click on a computer) to see readings and cameras around that spot.</p>
@@ -373,6 +381,10 @@ const I18N = {
     title: "Thai Flood Cams", search: "Search place or road", wall: "Wall",
     wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
     hSensors: "Water sensors", hReports: "Reports", hWeather: "Weather",
+    lEvents: "Road flood reports", lEventsSrc: "Longdo Traffic (iTIC) · last 6 h · every 10 min",
+    kEvent: "Road flood report (Longdo), faded once expired", evVia: "Longdo Traffic road event",
+    evTime: (a, b) => `Reported ${a}` + (b ? ` · expected until ${b}` : ""), evOpen: "Open on Longdo Traffic ↗",
+    evNote: n => ` · ${n} road flood reports`,
     lDam: "Major dams", lDamSrc: "thaiwater.net (RID, EGAT) · storage % · daily",
     kDam: "Dam, fill = storage (amber 80%+, red over 100%)", damTitle: "Dam",
     damFull: p => `${p}% full`, damLine: (s, c) => `${s} of ${c} million m³`,
@@ -442,6 +454,10 @@ const I18N = {
     title: "กล้องติดตามน้ำท่วม", search: "ค้นหา", wall: "รวมกล้อง",
     wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
     hSensors: "เซนเซอร์วัดน้ำ", hReports: "รายงาน", hWeather: "สภาพอากาศ",
+    lEvents: "รายงานน้ำท่วมถนน", lEventsSrc: "Longdo Traffic (iTIC) · 6 ชม. ล่าสุด · ทุก 10 นาที",
+    kEvent: "รายงานน้ำท่วมถนน (Longdo) จางลงเมื่อหมดเวลา", evVia: "เหตุการณ์จราจรจาก Longdo Traffic",
+    evTime: (a, b) => `แจ้งเมื่อ ${a}` + (b ? ` · คาดว่าถึง ${b}` : ""), evOpen: "เปิดใน Longdo Traffic ↗",
+    evNote: n => ` · รายงานน้ำท่วมถนน ${n} จุด`,
     lDam: "เขื่อนขนาดใหญ่", lDamSrc: "thaiwater.net (ชป., กฟผ.) · ปริมาณน้ำ % · รายวัน",
     kDam: "เขื่อน ระดับสีตามปริมาณน้ำ (ส้ม 80%+ แดง เกิน 100%)", damTitle: "เขื่อน",
     damFull: p => `ปริมาณน้ำ ${p}%`, damLine: (s, c) => `${s} จาก ${c} ล้าน ลบ.ม.`,
@@ -804,6 +820,7 @@ function draw() {
   $("#count").textContent = t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
     + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood, floodOn()) : "")
     + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), repHours) : "")
+    + (events.length && $("#l-events").checked ? t("evNote", events.length) : "")
     + (dams.length && $("#l-dam").checked ? t("damNote", dams.filter(d => d.pct >= 80).length) : "")
     + (rain.length && $("#l-rain").checked ? t("rainNote", rain.length, rain.filter(g => g.mm24 >= 90).length) : "");
   lamp();
@@ -880,6 +897,34 @@ function renderPhotos() {
         html: `<div class="photo-pin"><img src="${esc(photoUrl(ph, true))}" alt="" loading="lazy"></div>` }) })
       .bindTooltip(`${ph.caption ? ph.caption + " · " : ""}${ago(ph.created_at)}`, { direction: "top", offset: [0, -18] })
       .on("click", () => openPhoto(ph)).addTo(photoLayer);
+}
+
+/* ---------- road flood reports (Longdo Traffic events via public.road_events) ---------- */
+let events = [];
+const eventLayer = L.markerClusterGroup({ maxClusterRadius: 36, disableClusteringAtZoom: 14, showCoverageOnHover: false,
+  iconCreateFunction: cl => L.divIcon({ html: cl.getChildCount(), className: "lev-cluster", iconSize: [26, 26] }) });
+async function loadEvents() {
+  if (!photosOn) return;
+  const since = new Date(Date.now() - 6 * 3600e3).toISOString();
+  const r = await sb(`/rest/v1/road_events?select=*&starts=gte.${since}&order=starts.desc`, { cache: "no-store" });
+  if (!r.ok) return;
+  events = await r.json();
+  renderEvents(); draw();
+}
+function renderEvents() {
+  eventLayer.clearLayers();
+  eventLayer.addLayers(events.map(e => {
+    const old = e.stops && Date.parse(e.stops) < Date.now();
+    const title = lang === "en" && e.title_en ? e.title_en : e.title, body = lang === "en" && e.body_en ? e.body_en : e.body;
+    return L.marker([e.lat, e.lon], { icon: L.divIcon({ className: "", iconSize: [15, 13], html: `<i class="lev${old ? " old" : ""}"></i>` }) })
+      .bindTooltip(`${title} · ${ago(e.starts)}`, { direction: "top", offset: [0, -8] })
+      .bindPopup(() => `<b>${esc(title)}</b><br>`
+        + (e.image ? `<img class="rep-photo" src="${esc(e.image)}" alt="" loading="lazy">` : "")
+        + (body ? `<div style="max-width:260px;white-space:pre-line">${esc(body)}</div>` : "")
+        + `<div class="reading" style="margin-top:6px">${esc(t("evTime", when(e.starts), e.stops ? when(e.stops) : ""))}</div>`
+        + `<div class="reading" style="margin-top:4px">${t("evVia")}</div>`
+        + (e.link ? `<a href="${esc(e.link)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px">${t("evOpen")}</a>` : ""), { maxWidth: 280 });
+  }));
 }
 
 /* ---------- major dams (thaiwater daily list via public.dams) ---------- */
@@ -1506,7 +1551,9 @@ fetch("cameras.json").then(r => r.json()).then(data => {
     loadRain(); setInterval(loadRain, 20 * 60e3);
     if ($("#l-dam").checked) damLayer.addTo(map);
     loadDams(); setInterval(loadDams, 60 * 60e3);
-  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#rephours").hidden = true; $("#l-rain").closest("label").hidden = true; $("#l-dam").closest("label").hidden = true; }
+    if ($("#l-events").checked) eventLayer.addTo(map);
+    loadEvents(); setInterval(loadEvents, 10 * 60e3);
+  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#rephours").hidden = true; $("#l-rain").closest("label").hidden = true; $("#l-dam").closest("label").hidden = true; $("#l-events").closest("label").hidden = true; }
 }).catch(() => $("#count").textContent = t("noList"));
 
 function soloView(cam) {
@@ -1524,6 +1571,7 @@ function soloView(cam) {
 }
 
 $("#photofile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) startCompose(f).catch(() => toast(t("postFail"))); };
+$("#l-events").onchange = e => { e.target.checked ? eventLayer.addTo(map) : map.removeLayer(eventLayer); draw(); };
 $("#l-dam").onchange = e => { e.target.checked ? damLayer.addTo(map) : map.removeLayer(damLayer); draw(); };
 $("#l-rain").onchange = e => { e.target.checked ? rainLayer.addTo(map) : map.removeLayer(rainLayer); draw(); };
 $("#reports").onchange = e => { e.target.checked ? reportLayer.addTo(map) : map.removeLayer(reportLayer); syncRepHours(); draw(); };
@@ -1560,6 +1608,7 @@ function applyLang() {
   if (reports.length) renderReports();
   if (rain.length) renderRain();
   if (dams.length) renderDams();
+  if (events.length) renderEvents();
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
   $("#langbtn").setAttribute("aria-label", t("langAria"));
