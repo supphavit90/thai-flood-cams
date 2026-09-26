@@ -141,9 +141,13 @@
   #count { margin:6px 4px 0; font-size:11px; color:var(--dim); letter-spacing:.01em }
   #count b { color:var(--ink); font-weight:500 }
 
-  #hlbtn { all:unset; cursor:pointer; margin:4px 4px 0; font-size:12px; font-weight:500; color:var(--ink);
-           display:inline-flex; gap:4px; align-items:center; min-height:24px }
-  #hlbtn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:4px }
+  /* a real button, full width, so it reads as tappable on a phone */
+  #hlbtn { display:flex; align-items:center; gap:8px; width:100%; margin-top:6px; min-height:38px; padding:0 12px;
+           border:1px solid var(--line); border-radius:7px; background:var(--well); color:var(--ink);
+           font:500 13px/1 var(--sans); cursor:pointer; text-align:left }
+  #hlbtn:hover { border-color:var(--ink) }
+  #hlbtn .chev { margin-left:auto; font-size:11px; color:var(--dim); transition:transform .15s }
+  #hlbtn[aria-expanded="true"] { background:var(--panel); border-color:var(--ink) }
   #hlbtn[aria-expanded="true"] .chev { transform:rotate(180deg) }
   #highlights { margin-top:4px; border-top:1px solid var(--line); padding:8px 4px 2px; display:grid; gap:7px;
                 max-height:min(42vh, 360px); overflow:auto }
@@ -314,7 +318,9 @@
     <button class="key" id="langbtn" lang="th">TH</button>
   </div>
   <div id="count" class="mono" data-i18n="loading">Loading cameras…</div>
-  <button id="hlbtn" aria-expanded="false" aria-controls="highlights"><span data-i18n="hlBtn">Highlights for this view</span> <span class="chev">▾</span></button>
+  <button id="hlbtn" aria-expanded="false" aria-controls="highlights">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+    <span data-i18n="hlBtn">Highlights for this view</span><span class="chev" aria-hidden="true">▾</span></button>
   <div id="highlights" hidden>
     <div class="hlwin"><span data-i18n="hlOver">Change over</span>
       <div class="hours" id="hlhours" role="group" data-i18n-aria="hlOver"><button data-h="1">1 h</button><button data-h="2">2 h</button><button data-h="3">3 h</button><button data-h="6">6 h</button><button data-h="12">12 h</button></div>
@@ -1856,10 +1862,12 @@ document.querySelectorAll("#hlhours button").forEach(b => b.onclick = () => {
   syncHlHours(); updateHighlights(); loadTrends();
 });
 syncHlHours();
-// open by default; closing it is remembered
+// Open by default on a wide screen, closed on a phone (it would cover the map).
+// Once someone opens or closes it, that choice wins.
 const HL_KEY = "livecam.highlights";
 const setHl = open => { $("#highlights").hidden = !open; $("#hlbtn").setAttribute("aria-expanded", open); };
-try { setHl(localStorage.getItem(HL_KEY) !== "0"); } catch { setHl(true); }
+const hlDefault = !matchMedia("(max-width: 720px)").matches;
+try { const v = localStorage.getItem(HL_KEY); setHl(v == null ? hlDefault : v === "1"); } catch { setHl(hlDefault); }
 $("#hlbtn").onclick = () => {
   const open = $("#highlights").hidden;
   setHl(open);
