@@ -128,6 +128,9 @@
          background:var(--panel); display:inline-flex; align-items:center; gap:8px; white-space:nowrap }
   .key:hover { background:var(--well) }
   .key[aria-expanded="true"], .key.on { border-color:var(--ink) }
+  #refreshbtn { padding:0 11px }
+  #refreshbtn.busy svg { animation:spin .9s linear infinite }
+  @keyframes spin { to { transform:rotate(360deg) } }
   .key .lamp { width:7px; height:7px; border-radius:50%; background:var(--line) }
   .key.on .lamp { background:var(--accent) }
   #count { margin:6px 4px 0; font-size:11px; color:var(--dim); letter-spacing:.01em }
@@ -277,6 +280,7 @@
     <input id="q" type="search" autocomplete="off" data-i18n-ph="search">
     <button class="key" id="wallbtn" data-i18n="wall" data-i18n-title="wallTitle">Wall</button>
     <button class="key" id="filtersbtn" aria-expanded="false" aria-controls="filters"><span class="lamp"></span><span data-i18n="layers">Layers</span></button>
+    <button class="key" id="refreshbtn" data-i18n-aria="refresh" data-i18n-title="refresh"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     <button class="key" id="langbtn" lang="th">TH</button>
   </div>
   <div id="count" class="mono" data-i18n="loading">Loading cameras…</div>
@@ -300,7 +304,7 @@
     </div>
     <div class="group">
       <h3 data-i18n="hWeather">Weather</h3>
-      <label class="switch"><input type="checkbox" id="l-rain" checked><span><span data-i18n="lRain">Heavy rain, last 24 h</span><small data-i18n="lRainSrc">thaiwater.net rain gauges · 35 mm or more · hourly</small></span></label>
+      <label class="switch"><input type="checkbox" id="l-rain" checked><span><span data-i18n="lRain">Heavy rain, last 24 h</span><small data-i18n="lRainSrc">thaiwater.net + BMA rain gauges · 35 mm or more</small></span></label>
       <label class="switch"><input type="checkbox" id="radar"><span><span data-i18n="radar">Rain radar</span><small data-i18n="radarSrc">RainViewer · updates every 10 min</small></span></label>
     </div>
     <div class="group">
@@ -378,19 +382,21 @@ const SOURCES = {
    switch too, since thaiwater publishes both. */
 const I18N = {
   en: {
-    title: "Thai Flood Cams", search: "Search place or road", wall: "Wall",
+    title: "Thai Flood Cams", search: "Search", wall: "Wall",
     wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
     hSensors: "Water sensors", hReports: "Reports", hWeather: "Weather",
     lEvents: "Road flood reports", lEventsSrc: "Longdo Traffic (iTIC) · last 6 h · every 10 min",
     kEvent: "Road flood report (Longdo), faded once expired", evVia: "Longdo Traffic road event",
     evTime: (a, b) => `Reported ${a}` + (b ? ` · expected until ${b}` : ""), evOpen: "Open on Longdo Traffic ↗",
     evNote: n => ` · ${n} road flood reports`,
+    lastH: w => `last ${w} h`, klong: "Canal flow map (BMA) ↗",
+    refresh: "Refresh data", refreshed: hm => `Updated ${hm}`, refreshing: "Refreshing…",
     lDam: "Major dams", lDamSrc: "thaiwater.net (RID, EGAT) · storage % · daily",
     kDam: "Dam, fill = storage (amber 80%+, red over 100%)", damTitle: "Dam",
     damFull: p => `${p}% full`, damLine: (s, c) => `${s} of ${c} million m³`,
     damFlow: (i, r, sp) => `Today: inflow ${i}, released ${r}` + (sp ? `, spillway ${sp}` : "") + " million m³",
     damNote: n => ` · ${n} major dams 80%+ full`,
-    lRain: "Heavy rain, last 24 h", lRainSrc: "thaiwater.net rain gauges · 35 mm or more · hourly",
+    lRain: "Heavy rain, last 24 h", lRainSrc: "thaiwater.net + BMA rain gauges · 35 mm or more",
     kRain1: "Heavy rain, 35–90 mm / 24 h", kRain2: "Very heavy rain, 90 mm+ / 24 h",
     rainTitle: "Rain gauge", rain24: mm => `${mm} mm in the last 24 h`, rain1: mm => `${mm} mm in the last hour`,
     rainNote: (n, v) => ` · heavy rain at ${n} gauges (${v} very heavy)`, pRain: "Heavy rain within 10 km", mmh: "mm/h",
@@ -458,12 +464,14 @@ const I18N = {
     kEvent: "รายงานน้ำท่วมถนน (Longdo) จางลงเมื่อหมดเวลา", evVia: "เหตุการณ์จราจรจาก Longdo Traffic",
     evTime: (a, b) => `แจ้งเมื่อ ${a}` + (b ? ` · คาดว่าถึง ${b}` : ""), evOpen: "เปิดใน Longdo Traffic ↗",
     evNote: n => ` · รายงานน้ำท่วมถนน ${n} จุด`,
+    lastH: w => `${w} ชม. ล่าสุด`, klong: "แผนที่การไหลของคลอง (กทม.) ↗",
+    refresh: "รีเฟรชข้อมูล", refreshed: hm => `อัปเดตแล้ว ${hm}`, refreshing: "กำลังรีเฟรช…",
     lDam: "เขื่อนขนาดใหญ่", lDamSrc: "thaiwater.net (ชป., กฟผ.) · ปริมาณน้ำ % · รายวัน",
     kDam: "เขื่อน ระดับสีตามปริมาณน้ำ (ส้ม 80%+ แดง เกิน 100%)", damTitle: "เขื่อน",
     damFull: p => `ปริมาณน้ำ ${p}%`, damLine: (s, c) => `${s} จาก ${c} ล้าน ลบ.ม.`,
     damFlow: (i, r, sp) => `วันนี้: น้ำไหลเข้า ${i} ระบาย ${r}` + (sp ? ` ล้นทางระบาย ${sp}` : "") + " ล้าน ลบ.ม.",
     damNote: n => ` · เขื่อนใหญ่น้ำเกิน 80% ${n} แห่ง`,
-    lRain: "ฝนตกหนัก 24 ชม. ล่าสุด", lRainSrc: "สถานีวัดฝน thaiwater.net · 35 มม. ขึ้นไป · รายชั่วโมง",
+    lRain: "ฝนตกหนัก 24 ชม. ล่าสุด", lRainSrc: "สถานีวัดฝน thaiwater.net และ กทม. · 35 มม. ขึ้นไป",
     kRain1: "ฝนตกหนัก 35–90 มม. / 24 ชม.", kRain2: "ฝนตกหนักมาก 90 มม. ขึ้นไป / 24 ชม.",
     rainTitle: "สถานีวัดฝน", rain24: mm => `ฝน ${mm} มม. ใน 24 ชม.`, rain1: mm => `ฝน ${mm} มม. ในชั่วโมงล่าสุด`,
     rainNote: (n, v) => ` · ฝนตกหนัก ${n} สถานี (หนักมาก ${v})`, pRain: "ฝนตกหนักในรัศมี 10 กม.", mmh: "มม./ชม.",
@@ -968,10 +976,26 @@ const rainLayer = L.markerClusterGroup({ maxClusterRadius: 36, disableClustering
   } });
 async function loadRain() {
   if (!photosOn) return;
-  const r = await sb("/rest/v1/rain_gauges?select=id,name_th,name_en,province_th,province_en,lat,lon,mm24,mm1,ts&mm24=gte.35&order=mm24.desc", { cache: "no-store" });
+  const [r, bma] = await Promise.all([
+    sb("/rest/v1/rain_gauges?select=id,name_th,name_en,province_th,province_en,lat,lon,mm24,mm1,ts&mm24=gte.35&order=mm24.desc", { cache: "no-store" }),
+    // BMA's own ~120 Bangkok gauges, copied by the Mac job (BMA blocks servers abroad)
+    fetch("bma.json", { cache: "no-store" }).then(x => x.json()).catch(() => null),
+  ]);
   if (!r.ok) return;
-  rain = await r.json();
+  const tw = await r.json();
+  const fresh = g => Date.now() - bkkTime(g.ts) < 3 * 3600e3;
+  const bmaRain = (bma?.rain || []).filter(g => g.h24 >= 35 && fresh(g)).map(g => ({
+    bma: true, id: g.code, name_th: g.th, name_en: g.en, province_th: "กรุงเทพมหานคร", province_en: "Bangkok",
+    lat: g.y, lon: g.x, mm24: g.h24, mm1: g.h1, ts: g.ts, h: [g.h1, g.h3, g.h6, g.h12, g.h24] }));
+  rain = [...tw, ...bmaRain];
   renderRain(); draw();
+}
+function rainBreakdown(h) {
+  const max = Math.max(...h.map(v => v || 0), 1);
+  return `<table style="margin-top:8px;border-collapse:collapse;font:11px var(--mono);width:240px">` + ["1", "3", "6", "12", "24"].map((w, i) =>
+    `<tr><td style="padding:2px 6px 2px 0;color:var(--dim);white-space:nowrap">${t("lastH", w)}</td>`
+    + `<td style="width:100%"><div class="dampct" style="margin:0"><i style="width:${(h[i] || 0) / max * 100}%;background:var(--rain2)"></i></div></td>`
+    + `<td style="padding-left:6px;text-align:right;white-space:nowrap">${h[i] ?? "–"} mm</td></tr>`).join("") + "</table>";
 }
 function renderRain() {
   rainLayer.clearLayers();
@@ -980,8 +1004,9 @@ function renderRain() {
     .bindTooltip(`${bi({ th: g.name_th, en: g.name_en })}: ${g.mm24} mm / 24 h`, { direction: "top", offset: [0, -10] })
     .bindPopup(() => `<b>${esc(bi({ th: g.name_th, en: g.name_en }))}</b><br>${esc(bi({ th: g.province_th, en: g.province_en }))}<br>`
       + `<i class="rainpill ${rainClass(g.mm24)}" style="transform:none">${Math.round(g.mm24)}</i> ${esc(t("rain24", g.mm24))}<br>`
-      + `<span class="reading">${esc(t("rain1", g.mm1 ?? 0))}<br>${esc(when(g.ts))} · ${t("rainTitle")} · thaiwater.net</span>`
-      + trendBox({ type: "rain", id: g.id, unit: "mm" }))));
+      + `<span class="reading">${esc(t("rain1", g.mm1 ?? 0))}<br>${esc(when(g.ts))} · ${t("rainTitle")} · ${g.bma ? "BMA" : "thaiwater.net"}</span>`
+      // BMA gives running totals rather than a series: show them as a small breakdown
+      + (g.bma ? rainBreakdown(g.h) : trendBox({ type: "rain", id: g.id, unit: "mm" })))));
 }
 
 /* ---------- residents' flood reports (Traffy Fondue, via public.traffy_reports) ----------
@@ -1288,7 +1313,7 @@ const FLOOD_KINDS = ["river", "canal", "road", "tunnel"];
 const kindLayer = Object.fromEntries(FLOOD_KINDS.map(k => [k, L.layerGroup()]));
 const floodLayer = L.layerGroup().addTo(map);
 const floodOn = () => Object.fromEntries(FLOOD_KINDS.map(k => [k, $(`#l-${k}`).checked]));
-let floodTimer;
+let lastRefresh = Date.now();
 
 const esc = t => String(t ?? "").replace(/[&<>"]/g, ch => `&#${ch.charCodeAt(0)};`);
 
@@ -1470,7 +1495,8 @@ function renderFlood() {
       .bindTooltip(`${bi(c)}: ${word}`)
       .bindPopup(() => `<b>${esc(bi(c))}</b><br>${dot(c.lvl === 4 ? OVER : ALERT)}${esc(word)}<br>`
         + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`
-        + trendBox({ type: "bma", codes: [c.code], unit: "m", crit: c.crit }))
+        + trendBox({ type: "bma", codes: [c.code], unit: "m", crit: c.crit })
+        + `<a href="https://weather.bangkok.go.th/KlongMap" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">${t("klong")}</a>`)
       .addTo(kindLayer.canal);
   }
   for (const r of roads) {
@@ -1504,10 +1530,7 @@ function syncFlood() {
   const on = floodOn();
   FLOOD_KINDS.forEach(k => on[k] ? floodLayer.addLayer(kindLayer[k]) : floodLayer.removeLayer(kindLayer[k]));
   const any = FLOOD_KINDS.some(k => on[k]);
-  if (any && !floodTimer) {
-    const go = () => loadFlood().catch(() => { flood = "error"; draw(); });
-    go(); floodTimer = setInterval(go, 10 * 60e3);
-  } else if (!any) { clearInterval(floodTimer); floodTimer = null; }
+  if (any && !floodData) loadFlood().catch(() => { flood = "error"; draw(); });   // later updates: refreshAll()
   draw();
 }
 FLOOD_KINDS.forEach(k => $(`#l-${k}`).onchange = syncFlood);
@@ -1544,17 +1567,39 @@ fetch("cameras.json").then(r => r.json()).then(data => {
     new AddPhoto().addTo(map);
     $("#addphoto").title = t("addPhoto"); $("#addphoto").setAttribute("aria-label", t("addPhoto"));
     if ($("#photos").checked) photoLayer.addTo(map);
-    loadPhotos(); setInterval(loadPhotos, 5 * 60e3);
+    loadPhotos();
     if ($("#reports").checked) reportLayer.addTo(map);
-    loadReports(); setInterval(loadReports, 10 * 60e3); syncRepHours();
+    loadReports(); syncRepHours();
     if ($("#l-rain").checked) rainLayer.addTo(map);
-    loadRain(); setInterval(loadRain, 20 * 60e3);
+    loadRain();
     if ($("#l-dam").checked) damLayer.addTo(map);
-    loadDams(); setInterval(loadDams, 60 * 60e3);
+    loadDams();
     if ($("#l-events").checked) eventLayer.addTo(map);
-    loadEvents(); setInterval(loadEvents, 10 * 60e3);
+    loadEvents();
   } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#rephours").hidden = true; $("#l-rain").closest("label").hidden = true; $("#l-dam").closest("label").hidden = true; $("#l-events").closest("label").hidden = true; }
 }).catch(() => $("#count").textContent = t("noList"));
+
+/* ---------- refresh everything in place ----------
+   One place for updates: the refresh button, every 10 min, and when you come
+   back to the tab after 5+ min away. Sources update every 10-60 min themselves. */
+async function refreshAll(manual) {
+  const b = $("#refreshbtn");
+  if (b.classList.contains("busy")) return;
+  b.classList.add("busy"); b.title = t("refreshing");
+  trendCache.clear();
+  await Promise.allSettled([
+    FLOOD_KINDS.some(k => $(`#l-${k}`).checked) ? loadFlood().catch(() => { flood = "error"; draw(); }) : null,
+    photosOn && loadPhotos(), photosOn && loadReports(), photosOn && loadRain(), photosOn && loadDams(), photosOn && loadEvents(),
+    $("#radar").checked && loadRadar(),
+  ]);
+  lastRefresh = Date.now();
+  const hm = new Date().toLocaleTimeString(lang === "th" ? "th-TH" : "en-GB", { hour: "2-digit", minute: "2-digit" });
+  b.classList.remove("busy"); b.title = t("refreshed", hm); b.setAttribute("aria-label", t("refreshed", hm));
+  if (manual) toast(t("refreshed", hm));
+}
+$("#refreshbtn").onclick = () => refreshAll(true);
+setInterval(() => { if (!document.hidden) refreshAll(); }, 10 * 60e3);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - lastRefresh > 5 * 60e3) refreshAll(); });
 
 function soloView(cam) {
   if (!cam) return;
