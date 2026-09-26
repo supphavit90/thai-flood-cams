@@ -755,11 +755,16 @@ $("#p-toggle").onclick = () => {
   panelText(current);
   cleanup(); cleanup = mount(current, $("#p-view"), showingVideo);
 };
-// Live streams open this page in "solo" mode (#cam-<id>): one camera filling the
-// tab, with native controls for fullscreen. A raw .m3u8 link only plays in Safari.
+// Live streams open their source .m3u8 directly where the browser plays it
+// natively (iOS/iPadOS, Safari, Android). Desktop Chrome/Edge/Firefox download
+// the file instead, so there they get this page in "solo" mode (#cam-<id>):
+// one camera filling the tab, native controls for fullscreen.
+// (canPlayType can't decide this - desktop Chromium answers "maybe" and can't.)
+const playsHlsDirect = /iPhone|iPad|Android/.test(navigator.userAgent)
+  || (/Safari\//.test(navigator.userAgent) && !/Chrome|Chromium|Edg|Firefox|OPR/.test(navigator.userAgent));
 $("#p-open").onclick = () => window.open(
   current.yt ? `https://www.youtube.com/watch?v=${current.yt}`
-  : current.h ? `${location.pathname}#cam-${current.id}`
+  : current.h ? (playsHlsDirect ? current.h : `${location.pathname}#cam-${current.id}`)
   : current.i || current.embed, "_blank", "noopener");
 
 /* ---------- wall: every camera in the current viewport ---------- */
