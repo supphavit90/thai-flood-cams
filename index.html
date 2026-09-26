@@ -202,6 +202,20 @@
   .leaflet-tooltip { background:var(--panel); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); font-size:12px }
   .leaflet-tooltip-top::before { border-top-color:var(--line) }
   .reading { font-family:var(--mono); font-size:12px; color:var(--dim) }
+  .trend { width:260px; max-width:100%; margin-top:10px; border-top:1px solid var(--line); padding-top:8px }
+  .trend .th { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px }
+  .trend .lbl { font:500 11px/1.3 var(--mono); color:var(--ink); min-height:1.3em }
+  .trend .seg2 { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; flex:none }
+  .trend .seg2 button { font:11px var(--mono); border:0; background:none; color:var(--dim); padding:3px 7px; cursor:pointer }
+  .trend .seg2 button[aria-pressed="true"] { background:var(--ink); color:var(--bg) }
+  .trend svg { display:block; width:100%; height:96px; overflow:visible; touch-action:none }
+  .trend .ax { fill:var(--dim); font:10px var(--mono) }
+  .trend .ref { stroke:var(--wl-over); stroke-width:1; stroke-dasharray:3 3 }
+  .trend .ln { fill:none; stroke:var(--ink); stroke-width:2; stroke-linejoin:round; stroke-linecap:round }
+  .trend .area { fill:var(--ink); opacity:.08 }
+  .trend .cross { stroke:var(--dim); stroke-width:1 }
+  .trend .pt { fill:var(--accent); stroke:var(--panel); stroke-width:2 }
+  .trend .msg { font-size:11px; color:var(--dim); padding:10px 0 }
 
   @media (max-width:720px) {
     :root { --gut:10px }
@@ -331,6 +345,9 @@ const I18N = {
     postFail: "Couldn't post the photo. Check your connection and try again.", tooMany: "Too many photos from this connection. Try again in an hour.",
     report: "Report photo", reported: "Reported. Photos with 3 reports are hidden.", openFull: "Open full size ↗",
     noPhotoHere: "Photos can only be posted in Thailand.",
+    h24: "24 h", h48: "48 h", bank: "bank", critLine: "critical", trendLoading: "Loading trend…",
+    noTrend: "No readings in this period.", noTrendBma: "No history yet. BMA readings are collected every 20 minutes and build up from 26 Sep.",
+    trendFail: "Couldn't load the trend.",
     pRivers: "Nearest river stations", pRoads: "Road flood sensors within 2 km",
     pCams: "Cameras within 2 km", pNone: "Nothing within range.", normal: "normal", cm: "cm",
     pStale: "These road readings are from the last time thaiwater.net received them, not live.",
@@ -378,6 +395,9 @@ const I18N = {
     postFail: "ส่งภาพไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองใหม่", tooMany: "ส่งภาพจากการเชื่อมต่อนี้มากเกินไป ลองใหม่ในอีก 1 ชั่วโมง",
     report: "รายงานภาพนี้", reported: "รายงานแล้ว ภาพที่ถูกรายงาน 3 ครั้งจะถูกซ่อน", openFull: "เปิดภาพขนาดเต็ม ↗",
     noPhotoHere: "ส่งภาพได้เฉพาะในประเทศไทย",
+    h24: "24 ชม.", h48: "48 ชม.", bank: "ตลิ่ง", critLine: "วิกฤต", trendLoading: "กำลังโหลดกราฟ…",
+    noTrend: "ไม่มีข้อมูลในช่วงนี้", noTrendBma: "ยังไม่มีประวัติ ระบบเก็บค่าจาก กทม. ทุก 20 นาที เริ่มตั้งแต่ 26 ก.ย.",
+    trendFail: "โหลดกราฟไม่สำเร็จ",
     pRivers: "สถานีวัดระดับน้ำใกล้เคียง", pRoads: "เซนเซอร์น้ำท่วมถนนในรัศมี 2 กม.",
     pCams: "กล้องในรัศมี 2 กม.", pNone: "ไม่มีในระยะนี้", normal: "ปกติ", cm: "ซม.",
     pStale: "ค่าถนนเหล่านี้เป็นข้อมูลล่าสุดที่ thaiwater.net ได้รับ ไม่ใช่ค่าสด",
@@ -1022,6 +1042,92 @@ let floodTimer;
 
 const esc = t => String(t ?? "").replace(/[&<>"]/g, ch => `&#${ch.charCodeAt(0)};`);
 
+/* ---------- 24 / 48 h trend inside each sensor popup ----------
+   Fetched when the popup opens. Rivers: thaiwater's own 10-min history.
+   BMA canals / roads / tunnels: public.bma_readings, filled every 20 min by the
+   Mac job (BMA blocks servers abroad). Roads also merge thaiwater's history. */
+const trendCache = new Map();
+const trendBox = spec => `<div class="trend" data-spec="${esc(JSON.stringify(spec))}"></div>`;
+const bkkDay = ms => new Date(ms).toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+async function trendPoints(spec, hours) {
+  const key = JSON.stringify(spec) + hours;
+  if (trendCache.has(key)) return trendCache.get(key);
+  const since = Date.now() - hours * 3600e3, d0 = bkkDay(since), d1 = bkkDay(Date.now()) + " 23:59";
+  const pts = [];
+  let ref = spec.crit ?? null;
+  if (spec.type === "river") {
+    const j = await fetch(`${TW}waterlevel_graph?station_type=tele_waterlevel&station_id=${spec.id}&start_date=${d0}&end_date=${encodeURIComponent(d1)}`).then(r => r.json());
+    for (const g of j.data.graph_data) if (g.value != null) pts.push([bkkTime(g.datetime), g.value]);
+    ref = j.data.min_bank ?? null;
+  }
+  if (spec.type === "road" && spec.tw) {
+    const j = await fetch(`${TW}flood_road_graph?station_id=${spec.tw}&date_start=${d0}&date_end=${encodeURIComponent(d1)}`).then(r => r.json()).catch(() => ({ data: [] }));
+    for (const g of j.data) if (g.floodroad_value != null) pts.push([bkkTime(g.floodroad_datetime), g.floodroad_value]);
+  }
+  if ((spec.type === "bma" || spec.type === "road") && photosOn && spec.codes?.[0]) {
+    const r = await sb(`/rest/v1/bma_readings?select=ts,value&code=in.(${spec.codes.map(encodeURIComponent).join(",")})`
+      + `&ts=gte.${new Date(since).toISOString()}&order=ts`, { cache: "no-store" });
+    if (r.ok) for (const row of await r.json()) pts.push([Date.parse(row.ts), row.value]);
+  }
+  // one value per timestamp (tunnel sides / merged road sources: keep the deeper)
+  const by = new Map();
+  for (const [ts, v] of pts) if (ts >= since) by.set(ts, Math.max(v, by.get(ts) ?? -Infinity));
+  const out = { pts: [...by].sort((a, b) => a[0] - b[0]), ref };
+  trendCache.set(key, out);
+  setTimeout(() => trendCache.delete(key), 10 * 60e3);
+  return out;
+}
+async function mountTrend(box, hours = 24, popup = box._popup) {
+  box._popup = popup;
+  const spec = JSON.parse(box.dataset.spec);
+  box.innerHTML = `<div class="th"><span class="lbl"></span><span class="seg2">`
+    + [24, 48].map(h => `<button data-h="${h}" aria-pressed="${h === hours}">${t("h" + h)}</button>`).join("") + `</span></div>`
+    + `<div class="msg">${t("trendLoading")}</div>`;
+  box.querySelectorAll("[data-h]").forEach(b => b.onclick = e => { L.DomEvent.stopPropagation(e); mountTrend(box, +b.dataset.h); });
+  let data;
+  try { data = await trendPoints(spec, hours); }
+  catch { box.querySelector(".msg").textContent = t("trendFail"); return; }
+  if (!box.isConnected) return;
+  const { pts, ref } = data;
+  if (pts.length < 2) { box.querySelector(".msg").textContent = spec.type === "river" ? t("noTrend") : t("noTrendBma"); return; }
+  const W = 260, H = 96, L0 = 36, B = 16, T = 6;
+  const unit = spec.unit || "m", fmtV = v => `${(+v).toFixed(unit === "cm" ? 0 : 2)} ${unit === "cm" ? t("cm") : "m"}`;
+  const vals = pts.map(p => p[1]).concat(ref != null ? [ref] : []);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (unit === "cm") lo = Math.min(lo, 0);
+  if (hi - lo < 1e-6) { hi += 1; lo -= unit === "cm" ? 0 : 1; }
+  const pad = (hi - lo) * .08; hi += pad; if (unit !== "cm") lo -= pad;
+  const t0 = pts[0][0], t1 = Math.max(pts.at(-1)[0], t0 + 1);
+  const x = ts => L0 + (W - L0) * (ts - t0) / (t1 - t0), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  const hm = ts => new Date(ts).toLocaleString(lang === "th" ? "th-TH" : "en-GB",
+    { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", ...(hours > 24 ? { day: "numeric", month: "short" } : {}) });
+  const line = pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+  const refSvg = ref != null && ref > lo && ref < hi
+    ? `<line class="ref" x1="${L0}" x2="${W}" y1="${y(ref)}" y2="${y(ref)}"/><text class="ax" x="${W}" y="${y(ref) - 3}" text-anchor="end">${spec.type === "river" ? t("bank") : t("critLine")}</text>` : "";
+  box.querySelector(".msg").outerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">`
+    + `<path class="area" d="${line}L${x(t1)},${y(lo)}L${x(t0)},${y(lo)}Z"/>${refSvg}<path class="ln" d="${line}"/>`
+    + `<text class="ax" x="${L0 - 4}" y="${y(hi - pad) + 3}" text-anchor="end">${fmtV(hi - pad).split(" ")[0]}</text>`
+    + `<text class="ax" x="${L0 - 4}" y="${y(unit === "cm" ? lo : lo + pad) + 3}" text-anchor="end">${fmtV(unit === "cm" ? lo : lo + pad).split(" ")[0]}</text>`
+    + `<text class="ax" x="${L0}" y="${H - 2}">${hm(t0)}</text><text class="ax" x="${W}" y="${H - 2}" text-anchor="end">${hm(t1)}</text>`
+    + `<line class="cross" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="pt" r="4" visibility="hidden"/></svg>`;
+  const svg = box.querySelector("svg"), lbl = box.querySelector(".lbl"), cross = svg.querySelector(".cross"), dot = svg.querySelector(".pt");
+  const last = pts.at(-1), show = p => { lbl.textContent = `${hm(p[0])} · ${fmtV(p[1])}`; };
+  show(last);
+  // crosshair: nearest reading to the pointer (mouse or finger)
+  svg.onpointermove = e => {
+    const r = svg.getBoundingClientRect(), tx = t0 + ((e.clientX - r.left) / r.width * W - L0) / (W - L0) * (t1 - t0);
+    let best = pts[0]; for (const p of pts) if (Math.abs(p[0] - tx) < Math.abs(best[0] - tx)) best = p;
+    cross.setAttribute("x1", x(best[0])); cross.setAttribute("x2", x(best[0])); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", x(best[0])); dot.setAttribute("cy", y(best[1])); dot.setAttribute("visibility", "visible");
+    show(best);
+  };
+  svg.onpointerleave = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); show(last); };
+  // Leaflet sized the popup before the chart existed. Not popup.update(): that
+  // re-renders the content and would wipe this chart.
+  popup?._updateLayout?.(); popup?._updatePosition?.();
+}
+map.on("popupopen", e => e.popup.getElement()?.querySelectorAll(".trend").forEach(b => mountTrend(b, 24, e.popup)));
+
 let floodData = null, flood = null;   // flood: null (off) | "error" | {counts, times}
 const bkkTime = str => Date.parse(String(str).replace(" ", "T").slice(0, 16) + "+07:00");
 async function loadFlood() {
@@ -1038,11 +1144,11 @@ async function loadFlood() {
   for (const r of road.data) {
     const st = r.station;
     roads.set(st.floodroad_oldcode || st.id, { th: st.floodroad_name.th, y: st.floodroad_lat, x: st.floodroad_long,
-      cm: r.floodroad_value, ts: r.floodroad_datetime, t: bkkTime(r.floodroad_datetime) });
+      cm: r.floodroad_value, ts: r.floodroad_datetime, t: bkkTime(r.floodroad_datetime), tw: st.id, code: st.floodroad_oldcode });
   }
   for (const r of bma?.roads || []) {
     const t = bkkTime(r.ts), old = roads.get(r.code);
-    if (!old || t > old.t) roads.set(r.code, { th: r.th, en: r.en, y: r.y, x: r.x, cm: r.cm, ts: r.ts, t });
+    if (!old || t > old.t) roads.set(r.code, { th: r.th, en: r.en, y: r.y, x: r.x, cm: r.cm, ts: r.ts, t, tw: old?.tw, code: r.code });
   }
   floodData = { wl, roads: [...roads.values()], canals: bma?.canals || [], tunnels: bma?.tunnels || [] };
   renderFlood();
@@ -1067,7 +1173,7 @@ function renderFlood() {
         + `${lvl === 5 ? dot(OVER) + t("over") : dot(HIGH) + t("high")}<br>`
         + `<span class="reading">${esc(t("capacity", r.storage_percent))}<br>`
         + `${esc(r.diff_wl_bank_text)} ${esc(r.diff_wl_bank)} · ${esc(r.waterlevel_msl)} ${t("msl")}<br>`
-        + `${esc(r.waterlevel_datetime)}</span>`))
+        + `${esc(r.waterlevel_datetime)}</span>` + trendBox({ type: "river", id: st.id })))
       .addTo(floodLayer);
   }
   // Sensors go quiet without saying so, and feeds can stall for hours (thaiwater
@@ -1088,7 +1194,8 @@ function renderFlood() {
     L.marker([c.y, c.x], { icon: canalIcon[c.lvl] })
       .bindTooltip(`${bi(c)}: ${word}`)
       .bindPopup(() => `<b>${esc(bi(c))}</b><br>${dot(c.lvl === 4 ? OVER : ALERT)}${esc(word)}<br>`
-        + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`)
+        + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`
+        + trendBox({ type: "bma", codes: [c.code], unit: "m", crit: c.crit }))
       .addTo(floodLayer);
   }
   for (const r of roads) {
@@ -1098,7 +1205,8 @@ function renderFlood() {
       radius: 5 + Math.min(r.cm, 40) / 5, weight: 2, color: EDGE, fillColor: ROAD, fillOpacity: 1,
     }).bindTooltip(`${bi(r)}: ${t("tipRoad", r.cm)}`)
       .bindPopup(() => `<b>${esc(bi(r))}</b><br>${dot(ROAD)}${esc(t("road", r.cm))}<br>`
-        + `<span class="reading">${esc(when(r.ts))} · ${t("roadSensor")}</span>`)
+        + `<span class="reading">${esc(when(r.ts))} · ${t("roadSensor")}</span>`
+        + trendBox({ type: "road", codes: [r.code], tw: r.tw, unit: "cm" }))
       .addTo(floodLayer);
   }
   for (const tn of tunnels) {
@@ -1109,7 +1217,8 @@ function renderFlood() {
     L.circleMarker([tn.y, tn.x], { radius: 7 + Math.min(cm, 40) / 5, weight: 3, color: css("--ink"), fillColor: ROAD, fillOpacity: 1 })
       .bindTooltip(`${bi(tn)}: ${t("tipRoad", cm)}`)
       .bindPopup(() => `<b>${esc(bi(tn))}</b><br>${t("tunnel")}<br><span class="reading">`
-        + tn.sides.map(sd => `${esc(sd.dir)}: ${esc(sd.cm)} ${t("cm")} · ${esc(when(sd.ts))}`).join("<br>") + "</span>")
+        + tn.sides.map(sd => `${esc(sd.dir)}: ${esc(sd.cm)} ${t("cm")} · ${esc(when(sd.ts))}`).join("<br>") + "</span>"
+        + trendBox({ type: "bma", codes: tn.sides.map(sd => `${tn.code}:${sd.dir}`), unit: "cm" }))
       .addTo(floodLayer);
   }
   flood = { over, high, wet, ccrit, calert, tun, riverAt, roadAt, canalAt, roadStale };
