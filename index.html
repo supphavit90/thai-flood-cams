@@ -16,7 +16,7 @@
   :root {
     --bg:#edebe6; --panel:#f8f7f4; --well:#e4e1db; --ink:#1d1d1b; --dim:#6e6b64;
     --line:#d3cfc7; --accent:#e2571c; --live:#3d8b5a; --still:#8d8981;
-    --wl-high:#2f5fd0; --wl-over:#d0342c; --road:#7a4fc9; --alert:#d98b17; --report:#0e8a8c;
+    --wl-high:#2f5fd0; --wl-over:#d0342c; --road:#7a4fc9; --alert:#d98b17; --report:#0e8a8c; --rain1:#9cc3e6; --rain2:#1f5a96; --rain-ink1:#12243a; --rain-ink2:#ffffff;
     --tiles:none; --shadow:0 1px 2px #0000001a, 0 4px 14px #0000000f;
     --sans:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -26,14 +26,14 @@
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
     --bg:#1b1b19; --panel:#252523; --well:#2f2f2c; --ink:#ecebe6; --dim:#9d9a92;
     --line:#3b3a36; --accent:#f06a2a; --live:#5aaa76; --still:#7d7a73;
-    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a; --report:#2fb3b5;
+    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a; --report:#2fb3b5; --rain1:#35587a; --rain2:#8cc4f5; --rain-ink1:#e8f1fa; --rain-ink2:#0c1a28;
     --tiles:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6);
     --shadow:0 1px 2px #0006, 0 4px 14px #0004; color-scheme:dark;
   } }
   :root[data-theme="dark"] {
     --bg:#1b1b19; --panel:#252523; --well:#2f2f2c; --ink:#ecebe6; --dim:#9d9a92;
     --line:#3b3a36; --accent:#f06a2a; --live:#5aaa76; --still:#7d7a73;
-    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a; --report:#2fb3b5;
+    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a; --report:#2fb3b5; --rain1:#35587a; --rain2:#8cc4f5; --rain-ink1:#e8f1fa; --rain-ink2:#0c1a28;
     --tiles:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6);
     --shadow:0 1px 2px #0006, 0 4px 14px #0004; color-scheme:dark;
   }
@@ -75,6 +75,12 @@
   .hours button + button { border-left:1px solid var(--line) }
   .hours button[aria-pressed="true"] { background:var(--ink); color:var(--bg) }
   .hours[aria-disabled="true"] { opacity:.45; pointer-events:none }
+  .rainpill { display:inline-grid; place-items:center; min-width:28px; height:18px; padding:0 5px; border-radius:9px;
+              font:600 10px/1 var(--mono); border:1.5px solid var(--panel); box-shadow:0 1px 3px #0005; white-space:nowrap;
+              transform:translate(-50%, -50%) }
+  .rainpill.r1 { background:var(--rain1); color:var(--rain-ink1) } .rainpill.r2 { background:var(--rain2); color:var(--rain-ink2) }
+  .rain-cluster .rainpill { height:22px; font-size:11px }
+  .trend .bar { fill:var(--rain2) }
   .rep-state { display:inline-block; font:500 10px/1 var(--mono); padding:3px 6px; border-radius:4px;
                background:var(--well); color:var(--ink); letter-spacing:.04em }
   .photo-full { width:100%; max-width:100%; border-radius:8px; display:block; background:#111 }
@@ -278,6 +284,7 @@
     </div>
     <div class="group">
       <h3 data-i18n="hWeather">Weather</h3>
+      <label class="switch"><input type="checkbox" id="l-rain" checked><span><span data-i18n="lRain">Heavy rain, last 24 h</span><small data-i18n="lRainSrc">thaiwater.net rain gauges · 35 mm or more · hourly</small></span></label>
       <label class="switch"><input type="checkbox" id="radar"><span><span data-i18n="radar">Rain radar</span><small data-i18n="radarSrc">RainViewer · updates every 10 min</small></span></label>
     </div>
     <div class="group">
@@ -299,6 +306,8 @@
         <span><i class="dot dia" style="background:var(--alert)"></i><span data-i18n="kCanalAlert">Canal alert (BMA)</span></span>
         <span><i class="dot" style="background:var(--report);border-radius:50% 50% 50% 2px;transform:rotate(-45deg)"></i><span data-i18n="kReport">Resident flood report</span></span>
         <span><i class="dot sq" style="background:var(--well);box-shadow:0 0 0 1.5px var(--accent)"></i><span data-i18n="kPhoto">Community photo</span></span>
+        <span><i class="rainpill r1" style="transform:none;min-width:22px;height:14px;font-size:9px">50</i><span data-i18n="kRain1">Heavy rain, 35–90 mm / 24 h</span></span>
+        <span><i class="rainpill r2" style="transform:none;min-width:22px;height:14px;font-size:9px">120</i><span data-i18n="kRain2">Very heavy rain, 90 mm+ / 24 h</span></span>
         <span><i class="dot" style="background:var(--road)"></i><span data-i18n="kRoad">Road flooded, sized by cm</span></span>
       </div>
       <p class="reading" style="margin:10px 0 0" data-i18n="areaHint">Long-press the map (right-click on a computer) to see readings and cameras around that spot.</p>
@@ -354,6 +363,10 @@ const I18N = {
     title: "Thai Flood Cams", search: "Search place or road", wall: "Wall",
     wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
     hSensors: "Water sensors", hReports: "Reports", hWeather: "Weather",
+    lRain: "Heavy rain, last 24 h", lRainSrc: "thaiwater.net rain gauges · 35 mm or more · hourly",
+    kRain1: "Heavy rain, 35–90 mm / 24 h", kRain2: "Very heavy rain, 90 mm+ / 24 h",
+    rainTitle: "Rain gauge", rain24: mm => `${mm} mm in the last 24 h`, rain1: mm => `${mm} mm in the last hour`,
+    rainNote: (n, v) => ` · heavy rain at ${n} gauges (${v} very heavy)`, pRain: "Heavy rain within 10 km", mmh: "mm/h",
     lRiver: "River levels", lRiverSrc: "thaiwater.net · high and over the bank · hourly",
     lCanal: "Canal levels", lCanalSrc: "BMA · alert and critical · every 20 min",
     lRoad: "Road flooding", lRoadSrc: "BMA road sensors · every 20 min",
@@ -414,6 +427,10 @@ const I18N = {
     title: "กล้องติดตามน้ำท่วม", search: "ค้นหา", wall: "รวมกล้อง",
     wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
     hSensors: "เซนเซอร์วัดน้ำ", hReports: "รายงาน", hWeather: "สภาพอากาศ",
+    lRain: "ฝนตกหนัก 24 ชม. ล่าสุด", lRainSrc: "สถานีวัดฝน thaiwater.net · 35 มม. ขึ้นไป · รายชั่วโมง",
+    kRain1: "ฝนตกหนัก 35–90 มม. / 24 ชม.", kRain2: "ฝนตกหนักมาก 90 มม. ขึ้นไป / 24 ชม.",
+    rainTitle: "สถานีวัดฝน", rain24: mm => `ฝน ${mm} มม. ใน 24 ชม.`, rain1: mm => `ฝน ${mm} มม. ในชั่วโมงล่าสุด`,
+    rainNote: (n, v) => ` · ฝนตกหนัก ${n} สถานี (หนักมาก ${v})`, pRain: "ฝนตกหนักในรัศมี 10 กม.", mmh: "มม./ชม.",
     lRiver: "ระดับน้ำแม่น้ำ", lRiverSrc: "thaiwater.net · น้ำมากและล้นตลิ่ง · รายชั่วโมง",
     lCanal: "ระดับน้ำคลอง", lCanalSrc: "กทม. · เฝ้าระวังและวิกฤต · ทุก 20 นาที",
     lRoad: "น้ำท่วมถนน", lRoadSrc: "เซนเซอร์ถนน กทม. · ทุก 20 นาที",
@@ -476,7 +493,8 @@ let lang = (() => { try { return localStorage.getItem(LANG_KEY); } catch { retur
 // "08:30" for today, "25 Sep 20:10" otherwise; thaiwater times are Bangkok time
 const when = str => {
   if (!str) return "—";
-  const d = new Date(String(str).replace(" ", "T") + "+07:00");
+  // thaiwater/BMA give Bangkok local "YYYY-MM-DD HH:MM"; Supabase gives ISO with an offset
+  const d = /[zZ]|[+-]\d\d:?\d\d$/.test(str) ? new Date(str) : new Date(String(str).replace(" ", "T") + "+07:00");
   const loc = lang === "th" ? "th-TH" : "en-GB", tz = { timeZone: "Asia/Bangkok" };
   const today = d.toLocaleDateString(loc, tz) === new Date().toLocaleDateString(loc, tz);
   return d.toLocaleString(loc, { ...tz, hour: "2-digit", minute: "2-digit", ...(today ? {} : { day: "numeric", month: "short" }) });
@@ -760,7 +778,8 @@ function draw() {
   const onMap = list.filter(c => c.y != null);   // streams with no location aren't shown anywhere
   $("#count").textContent = t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
     + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood, floodOn()) : "")
-    + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), repHours) : "");
+    + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), repHours) : "")
+    + (rain.length && $("#l-rain").checked ? t("rainNote", rain.length, rain.filter(g => g.mm24 >= 90).length) : "");
   lamp();
 }
 
@@ -835,6 +854,34 @@ function renderPhotos() {
         html: `<div class="photo-pin"><img src="${esc(photoUrl(ph, true))}" alt="" loading="lazy"></div>` }) })
       .bindTooltip(`${ph.caption ? ph.caption + " · " : ""}${ago(ph.created_at)}`, { direction: "top", offset: [0, -18] })
       .on("click", () => openPhoto(ph)).addTo(photoLayer);
+}
+
+/* ---------- heavy rain (thaiwater gauges via public.rain_gauges) ----------
+   Only gauges at 35 mm+ in 24 h (TMD's "heavy rain"). Clusters show the
+   highest reading inside them, so the worst spot survives zooming out. */
+let rain = [];
+const rainClass = mm => mm >= 90 ? "r2" : "r1";
+const rainLayer = L.markerClusterGroup({ maxClusterRadius: 36, disableClusteringAtZoom: 11, showCoverageOnHover: false,
+  iconCreateFunction: cl => {
+    const mx = Math.max(...cl.getAllChildMarkers().map(m => m.options.mm));
+    return L.divIcon({ className: "rain-cluster", iconSize: [0, 0], html: `<i class="rainpill ${rainClass(mx)}">${Math.round(mx)}</i>` });
+  } });
+async function loadRain() {
+  if (!photosOn) return;
+  const r = await sb("/rest/v1/rain_gauges?select=id,name_th,name_en,province_th,province_en,lat,lon,mm24,mm1,ts&mm24=gte.35&order=mm24.desc", { cache: "no-store" });
+  if (!r.ok) return;
+  rain = await r.json();
+  renderRain(); draw();
+}
+function renderRain() {
+  rainLayer.clearLayers();
+  rainLayer.addLayers(rain.map(g => L.marker([g.lat, g.lon], { mm: g.mm24, zIndexOffset: Math.round(g.mm24),
+      icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<i class="rainpill ${rainClass(g.mm24)}">${Math.round(g.mm24)}</i>` }) })
+    .bindTooltip(`${bi({ th: g.name_th, en: g.name_en })}: ${g.mm24} mm / 24 h`, { direction: "top", offset: [0, -10] })
+    .bindPopup(() => `<b>${esc(bi({ th: g.name_th, en: g.name_en }))}</b><br>${esc(bi({ th: g.province_th, en: g.province_en }))}<br>`
+      + `<i class="rainpill ${rainClass(g.mm24)}" style="transform:none">${Math.round(g.mm24)}</i> ${esc(t("rain24", g.mm24))}<br>`
+      + `<span class="reading">${esc(t("rain1", g.mm1 ?? 0))}<br>${esc(when(g.ts))} · ${t("rainTitle")} · thaiwater.net</span>`
+      + trendBox({ type: "rain", id: g.id, unit: "mm" }))));
 }
 
 /* ---------- residents' flood reports (Traffy Fondue, via public.traffy_reports) ----------
@@ -997,6 +1044,9 @@ function placeSummary(p) {
       + (flood?.roadStale ? `<p class="none" style="margin-top:6px">${t("pStale")}</p>` : "")
       : `<p class="none">${t("pNone")}</p>`) + "</section>");
   }
+  const ng = near(rain, g => g.lat, g => g.lon, 10).slice(0, 4);
+  if (ng.length) out.push(`<section><h3>${t("pRain")}</h3><ul>` + ng.map(([d, g]) =>
+    row(g.mm24 >= 90 ? css("--rain2") : css("--rain1"), bi({ th: g.name_th, en: g.name_en }), `${kmTxt(d)} · ${when(g.ts)}`, `${g.mm24} mm`)).join("") + "</ul></section>");
   const nr = near(repVisible(), r => r.lat, r => r.lon, 1);
   if (nr.length) out.push(`<section><h3>${t("pReports")} · ${nr.length}</h3><ul>` + nr.slice(0, 5).map(([d, r]) =>
     row(css("--report"), r.body || r.address, `${kmTxt(d)} · ${ago(r.ts)} · ${repStateTxt(r.state)}`, "")).join("") + "</ul></section>");
@@ -1163,6 +1213,10 @@ async function trendPoints(spec, hours) {
     for (const g of j.data.graph_data) if (g.value != null) pts.push([bkkTime(g.datetime), g.value]);
     ref = j.data.min_bank ?? null;
   }
+  if (spec.type === "rain") {
+    const j = await fetch(`${TW}rain_24h_graph?station_id=${spec.id}`).then(r => r.json());
+    for (const g of j.data || []) if (g.rainfall_value != null) pts.push([bkkTime(g.rainfall_datetime), g.rainfall_value]);
+  }
   if (spec.type === "road" && spec.tw) {
     const j = await fetch(`${TW}flood_road_graph?station_id=${spec.tw}&date_start=${d0}&date_end=${encodeURIComponent(d1)}`).then(r => r.json()).catch(() => ({ data: [] }));
     for (const g of j.data) if (g.floodroad_value != null) pts.push([bkkTime(g.floodroad_datetime), g.floodroad_value]);
@@ -1194,12 +1248,13 @@ async function mountTrend(box, hours = 24, popup = box._popup) {
   const { pts, ref } = data;
   if (pts.length < 2) { box.querySelector(".msg").textContent = spec.type === "river" ? t("noTrend") : t("noTrendBma"); return; }
   const W = 260, H = 96, L0 = 36, B = 16, T = 6;
-  const unit = spec.unit || "m", fmtV = v => `${(+v).toFixed(unit === "cm" ? 1 : 2)} ${unit === "cm" ? t("cm") : "m"}`;
+  const unit = spec.unit || "m", bars = spec.type === "rain";
+  const fmtV = v => unit === "mm" ? `${(+v).toFixed(1)} ${t("mmh")}` : `${(+v).toFixed(unit === "cm" ? 1 : 2)} ${unit === "cm" ? t("cm") : "m"}`;
   const vals = pts.map(p => p[1]).concat(ref != null ? [ref] : []);
   let lo = Math.min(...vals), hi = Math.max(...vals);
-  if (unit === "cm") lo = Math.min(lo, 0);
+  if (unit === "cm" || bars) lo = Math.min(lo, 0);
   if (hi - lo < 1e-6) { hi += 1; lo -= unit === "cm" ? 0 : 1; }
-  const pad = (hi - lo) * .08; hi += pad; if (unit !== "cm") lo -= pad;
+  const pad = (hi - lo) * .08; hi += pad; if (unit !== "cm" && !bars) lo -= pad;
   const t0 = pts[0][0], t1 = Math.max(pts.at(-1)[0], t0 + 1);
   const x = ts => L0 + (W - L0) * (ts - t0) / (t1 - t0), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
   // dates whenever the chart spans more than one Bangkok day - otherwise
@@ -1219,10 +1274,14 @@ async function mountTrend(box, hours = 24, popup = box._popup) {
   const refSvg = ref != null && ref > lo && ref < hi
     ? `<line class="ref" x1="${L0}" x2="${W}" y1="${y(ref)}" y2="${y(ref)}"/><text class="ax" x="${W}" y="${y(ref) - 3}" text-anchor="end">${spec.type === "river" ? t("bank") : t("critLine")}</text>` : "";
   box.querySelector(".msg").outerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">`
-    + `<path class="area" d="${area}"/>${refSvg}<path class="ln" d="${line}"/>`
+    + (bars
+      // hourly rain as bars from zero, 2px apart, rounded tops
+      ? pts.map(p => { const w = Math.max(2, (W - L0) / Math.max(pts.length, 1) - 2), h = y(0) - y(p[1]);
+          return h > 0 ? `<rect class="bar" x="${(x(p[0]) - w / 2).toFixed(1)}" y="${y(p[1]).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5"/>` : ""; }).join("")
+      : `<path class="area" d="${area}"/>${refSvg}<path class="ln" d="${line}"/>`)
     + segs.filter(sg => sg.length === 1).map(sg => `<circle class="ln" r="1.5" cx="${x(sg[0][0])}" cy="${y(sg[0][1])}"/>`).join("")
     + `<text class="ax" x="${L0 - 4}" y="${y(hi - pad) + 3}" text-anchor="end">${fmtV(hi - pad).split(" ")[0]}</text>`
-    + `<text class="ax" x="${L0 - 4}" y="${y(unit === "cm" ? lo : lo + pad) + 3}" text-anchor="end">${fmtV(unit === "cm" ? lo : lo + pad).split(" ")[0]}</text>`
+    + `<text class="ax" x="${L0 - 4}" y="${y(unit === "cm" || bars ? lo : lo + pad) + 3}" text-anchor="end">${fmtV(unit === "cm" || bars ? lo : lo + pad).split(" ")[0]}</text>`
     + `<text class="ax" x="${L0}" y="${H - 2}">${hm(t0)}</text><text class="ax" x="${W}" y="${H - 2}" text-anchor="end">${hm(t1)}</text>`
     + `<line class="cross" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="pt" r="4" visibility="hidden"/></svg>`;
   const svg = box.querySelector("svg"), lbl = box.querySelector(".lbl"), cross = svg.querySelector(".cross"), dot = svg.querySelector(".pt");
@@ -1388,7 +1447,9 @@ fetch("cameras.json").then(r => r.json()).then(data => {
     loadPhotos(); setInterval(loadPhotos, 5 * 60e3);
     if ($("#reports").checked) reportLayer.addTo(map);
     loadReports(); setInterval(loadReports, 10 * 60e3); syncRepHours();
-  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#rephours").hidden = true; }
+    if ($("#l-rain").checked) rainLayer.addTo(map);
+    loadRain(); setInterval(loadRain, 20 * 60e3);
+  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#rephours").hidden = true; $("#l-rain").closest("label").hidden = true; }
 }).catch(() => $("#count").textContent = t("noList"));
 
 function soloView(cam) {
@@ -1406,6 +1467,7 @@ function soloView(cam) {
 }
 
 $("#photofile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) startCompose(f).catch(() => toast(t("postFail"))); };
+$("#l-rain").onchange = e => { e.target.checked ? rainLayer.addTo(map) : map.removeLayer(rainLayer); draw(); };
 $("#reports").onchange = e => { e.target.checked ? reportLayer.addTo(map) : map.removeLayer(reportLayer); syncRepHours(); draw(); };
 $("#photos").onchange = e => { e.target.checked ? photoLayer.addTo(map) : map.removeLayer(photoLayer); lamp(); };
 $("#close").addEventListener("click", endDraft);
@@ -1438,6 +1500,7 @@ function applyLang() {
   if ($("#addphoto")) { $("#addphoto").title = t("addPhoto"); $("#addphoto").setAttribute("aria-label", t("addPhoto")); }
   if (photos.length) renderPhotos();
   if (reports.length) renderReports();
+  if (rain.length) renderRain();
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
   $("#langbtn").setAttribute("aria-label", t("langAria"));
