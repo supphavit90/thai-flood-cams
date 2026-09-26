@@ -632,6 +632,7 @@ map.on("locationfound", e => {
   meRing = L.circle(e.latlng, { radius: e.accuracy, weight: 1, color: css("--accent"), fillOpacity: .08, interactive: false }).addTo(map);
   me = L.marker(e.latlng, { icon: L.divIcon({ className: "me", iconSize: [16, 16] }), zIndexOffset: 1100, interactive: false }).addTo(map);
   showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("myLocation") });
+  track("locate");
 });
 map.on("locationerror", e => {
   $("#locate").classList.remove("busy");
@@ -723,7 +724,7 @@ async function showArea(p) {
     b.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); b.click(); } };
   });
 }
-map.on("contextmenu", e => showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("thisSpot"), pin: true }));
+map.on("contextmenu", e => { showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("thisSpot"), pin: true }); track("area"); });
 /* ---------- community photos (Supabase: storage bucket + flood_photos table) ----------
    Anyone can post; nothing to sign in to. Setup SQL: supabase/flood_photos.sql.
    The publishable key is meant to be public - row-level security decides what
@@ -739,6 +740,19 @@ const ago = iso => {
   return min < 60 ? rtf.format(-min, "minute") : rtf.format(-Math.round(min / 60), "hour");
 };
 const sb = (path, opt = {}) => fetch(SB.url + path, { ...opt, headers: { apikey: SB.key, ...(opt.headers || {}) } });
+
+// Visit counting (supabase/site_events.sql): live site only, no cookies, no IDs
+// kept in the browser. The database turns IP + browser + date into a daily hash.
+const trackOn = photosOn && location.hostname.endsWith("github.io");
+function track(kind) {
+  if (!trackOn) return;
+  let referrer = null;
+  try { const r = new URL(document.referrer); if (r.hostname !== location.hostname) referrer = r.hostname.slice(0, 100); } catch {}
+  sb("/rest/v1/site_events", { method: "POST", keepalive: true,
+    headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify({ kind, lang, device: matchMedia("(pointer: coarse)").matches ? "mobile" : "desktop",
+                           referrer: kind === "visit" ? referrer : null }) }).catch(() => {});
+}
 
 async function loadPhotos() {
   if (!photosOn) return;
@@ -769,6 +783,7 @@ function panelCustom(title, sub) {
 }
 function openPhoto(ph) {
   if (!ph) return;
+  track("photo_view");
   const box = panelCustom(t("photoTitle"), ago(ph.created_at));
   box.innerHTML = `<img class="photo-full" src="${esc(photoUrl(ph))}" alt="${esc(ph.caption || t("photoTitle"))}">`
     + (ph.caption ? `<p style="margin:0">${esc(ph.caption)}</p>` : "")
@@ -831,6 +846,7 @@ async function postDraft() {
       body: JSON.stringify({ lat, lon: lng, caption: $("#caption").value.trim() || null, path }) });
     if (!r.ok) throw new Error((await r.text()).includes("Too many") ? "rate" : "insert");
     endDraft();
+    track("photo_post");
     toast(t("posted"));
     await loadPhotos();
     openPhoto(photos.find(ph => ph.path === path));
@@ -896,6 +912,7 @@ function panelText(cam) {
 // not "open": a global function by that name replaces window.open
 function openCam(cam) {
   cleanup(); current = cam; showingVideo = false;
+  track("cam");
   for (const id of ["#p-view", "#p-meta", "#panel .row"]) $(id).hidden = false;
   $("#p-place").hidden = true;
   panelText(cam);
@@ -925,10 +942,10 @@ $("#p-toggle").onclick = () => {
 // (canPlayType can't decide this - desktop Chromium answers "maybe" and can't.)
 const playsHlsDirect = /iPhone|iPad|Android/.test(navigator.userAgent)
   || (/Safari\//.test(navigator.userAgent) && !/Chrome|Chromium|Edg|Firefox|OPR/.test(navigator.userAgent));
-$("#p-open").onclick = () => window.open(
+$("#p-open").onclick = () => (current.h && track("newtab"), window.open(
   current.yt ? `https://www.youtube.com/watch?v=${current.yt}`
   : current.h ? (playsHlsDirect ? current.h : `${location.pathname}#cam-${current.id}`)
-  : current.i || current.embed, "_blank", "noopener");
+  : current.i || current.embed, "_blank", "noopener"));
 
 /* ---------- wall: every camera in the current viewport ---------- */
 const WALL_MAX = 24;               // ponytail: hard cap. 24 refreshing JPEGs is
@@ -1130,6 +1147,7 @@ fetch("cameras.json").then(r => r.json()).then(data => {
     $("#src").insertAdjacentHTML("beforeend",
       `<label class="switch"><input type="checkbox" value="${s}"${off.has(s) ? "" : " checked"}> <span data-src="${s}">${srcName(s)}</span></label>`);
   applyLang();
+  track("visit");
   const solo = /^#cam-(\d+)$/.exec(location.hash);
   if (solo) return soloView(cams.find(c => c.id === +solo[1]));
   if ($("#flood").checked) $("#flood").onchange({ target: $("#flood") });   // on by default
