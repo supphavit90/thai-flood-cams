@@ -1,0 +1,1006 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#edebe6">
+<title>Thai Flood Cams</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<style>
+  /* Rams / Braun: warm grey casing, near-black print, one orange for "on",
+     one green lamp for "live". Everything else stays quiet. */
+  :root {
+    --bg:#edebe6; --panel:#f8f7f4; --well:#e4e1db; --ink:#1d1d1b; --dim:#6e6b64;
+    --line:#d3cfc7; --accent:#e2571c; --live:#3d8b5a; --still:#8d8981;
+    --wl-high:#2f5fd0; --wl-over:#d0342c; --road:#7a4fc9; --alert:#d98b17;
+    --tiles:none; --shadow:0 1px 2px #0000001a, 0 4px 14px #0000000f;
+    --sans:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    --gut:12px; --r:10px;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#1b1b19; --panel:#252523; --well:#2f2f2c; --ink:#ecebe6; --dim:#9d9a92;
+    --line:#3b3a36; --accent:#f06a2a; --live:#5aaa76; --still:#7d7a73;
+    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a;
+    --tiles:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6);
+    --shadow:0 1px 2px #0006, 0 4px 14px #0004; color-scheme:dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg:#1b1b19; --panel:#252523; --well:#2f2f2c; --ink:#ecebe6; --dim:#9d9a92;
+    --line:#3b3a36; --accent:#f06a2a; --live:#5aaa76; --still:#7d7a73;
+    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a;
+    --tiles:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6);
+    --shadow:0 1px 2px #0006, 0 4px 14px #0004; color-scheme:dark;
+  }
+
+  * { box-sizing:border-box }
+  [hidden] { display:none !important }   /* #filters sets display:grid, which would beat the attribute */
+  html, body { height:100% }
+  body { margin:0; background:var(--bg); color:var(--ink); overflow:hidden;
+         font:14px/1.45 var(--sans); -webkit-tap-highlight-color:transparent }
+  button, input { font:inherit; color:inherit }
+  button { cursor:pointer }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums }
+  html[lang="th"] .mono { font-family:var(--sans) }   /* Plex Mono has no Thai glyphs */
+
+  #map { position:absolute; inset:0; background:var(--well); isolation:isolate }   /* keep Leaflet's z-indexes under the panels */
+  .leaflet-container { background:var(--well); font:inherit }
+  .leaflet-tile-pane { filter:var(--tiles) }
+  .leaflet-control-attribution { background:color-mix(in srgb, var(--panel) 80%, transparent) !important;
+                                 color:var(--dim) !important; font-size:10px }
+  .leaflet-control-attribution a { color:var(--dim) !important }
+  .leaflet-bar a { background:var(--panel); color:var(--ink); border-color:var(--line) }
+  #locate { width:40px; height:40px; display:grid; place-items:center; border-radius:8px;
+            border:1px solid var(--line); background:var(--panel); color:var(--ink); box-shadow:var(--shadow) }
+  #locate.busy { color:var(--accent) }
+  #locate svg { width:20px; height:20px }
+  .me { width:16px; height:16px; border-radius:50%; background:var(--accent); border:3px solid var(--panel);
+        box-shadow:0 0 0 1px var(--accent), 0 1px 4px #0006 }
+  #toast { position:absolute; z-index:800; left:50%; bottom:calc(24px + env(safe-area-inset-bottom, 0px));
+           transform:translateX(-50%); max-width:calc(100% - 32px); padding:9px 14px; border-radius:8px;
+           background:var(--ink); color:var(--bg); font-size:13px; box-shadow:var(--shadow) }
+
+  /* ---- control strip ---- */
+  #bar { position:absolute; z-index:500; left:var(--gut); right:var(--gut);
+         top:calc(env(safe-area-inset-top, 0px) + var(--gut)); max-width:560px;
+         background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
+         box-shadow:var(--shadow); padding:6px }
+  #bar .row { display:flex; gap:6px }
+  #q { flex:1; min-width:0; height:40px; padding:0 12px; border:1px solid transparent;
+       border-radius:7px; background:var(--well); outline:none }
+  #q:focus { border-color:var(--accent) }
+  #q::placeholder { color:var(--dim) }
+  .key { height:40px; padding:0 14px; border-radius:7px; border:1px solid var(--line);
+         background:var(--panel); display:inline-flex; align-items:center; gap:8px; white-space:nowrap }
+  .key:hover { background:var(--well) }
+  .key[aria-expanded="true"], .key.on { border-color:var(--ink) }
+  .key .lamp { width:7px; height:7px; border-radius:50%; background:var(--line) }
+  .key.on .lamp { background:var(--accent) }
+  #count { margin:6px 4px 0; font-size:11px; color:var(--dim); letter-spacing:.01em }
+  #count b { color:var(--ink); font-weight:500 }
+
+  #filters { margin-top:6px; border-top:1px solid var(--line); padding:10px 6px 4px;
+             display:grid; gap:14px; max-height:min(62vh, 520px); overflow:auto }
+  .group h3 { margin:0 0 6px; font-size:10px; font-weight:600; letter-spacing:.12em;
+              text-transform:uppercase; color:var(--dim) }
+  .switch { display:flex; align-items:center; gap:10px; min-height:36px; cursor:pointer; user-select:none }
+  .switch small { display:block; color:var(--dim); font-size:11px }
+  .switch input { appearance:none; -webkit-appearance:none; flex:none; margin:0; width:34px; height:20px;
+                  border-radius:10px; background:var(--line); position:relative; cursor:pointer;
+                  transition:background .15s }
+  .switch input::after { content:""; position:absolute; top:3px; left:3px; width:14px; height:14px;
+                         border-radius:50%; background:var(--panel); transition:transform .15s }
+  .switch input:checked { background:var(--accent) }
+  .switch input:checked::after { transform:translateX(14px) }
+  #src { display:grid; gap:0 }
+  .legend { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; font-size:12px; color:var(--dim) }
+  .legend span { display:flex; align-items:center; gap:8px }
+  .dot.sq { border-radius:3px }
+  .dot.dia { border-radius:1px; transform:rotate(45deg) scale(.85) }
+  /* inner <i>: Leaflet owns the icon element's own transform for positioning */
+  .canal { display:block; width:100%; height:100%; transform:rotate(45deg); border-radius:2px;
+           border:1.5px solid var(--panel); box-shadow:0 1px 3px #0005 }
+  .canal.crit { background:var(--wl-over) } .canal.alert { background:var(--alert) }
+  .dot { width:10px; height:10px; border-radius:50%; flex:none; border:1.5px solid var(--panel);
+         box-shadow:0 0 0 1px var(--line) }
+
+  /* ---- camera panel: side sheet on desktop, bottom sheet on phones ---- */
+  #panel { position:absolute; z-index:600; top:0; right:0; width:400px; height:100%;
+           background:var(--panel); border-left:1px solid var(--line); box-shadow:var(--shadow);
+           transform:translateX(105%); transition:transform .2s ease;
+           display:flex; flex-direction:column; padding-top:env(safe-area-inset-top, 0px) }
+  #panel.open { transform:none }
+  #panel header { position:relative; padding:14px 52px 12px 16px; border-bottom:1px solid var(--line) }
+  #panel h2 { margin:0 0 2px; font-size:15px; font-weight:600; line-height:1.35; text-wrap:balance }
+  #panel .sub { color:var(--dim); font-size:12px }
+  #close { position:absolute; top:8px; right:8px; width:40px; height:40px; border:0; border-radius:50%;
+           background:transparent; color:var(--dim); font-size:22px; line-height:1 }
+  #close:hover { background:var(--well); color:var(--ink) }
+  #panel .body { padding:14px 16px calc(16px + env(safe-area-inset-bottom, 0px)); overflow:auto; flex:1 }
+  #panel .row { display:flex; gap:8px; margin-top:10px }
+  #panel .row .key { flex:1; justify-content:center }
+  #p-meta { margin:12px 0 0; font-size:11px; color:var(--dim) }
+  #p-place { display:grid; gap:16px }
+  #p-place h3 { margin:0 0 6px; font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--dim) }
+  #p-place ul { list-style:none; margin:0; padding:0; display:grid; gap:1px; background:var(--line);
+                border:1px solid var(--line); border-radius:8px; overflow:hidden }
+  #p-place li { background:var(--panel); padding:9px 11px; display:grid; grid-template-columns:auto 1fr auto;
+                gap:10px; align-items:center; font-size:13px }
+  #p-place li .v { font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap }
+  #p-place li small { display:block; color:var(--dim); font-size:11px }
+  #p-place li[data-cam] { cursor:pointer }
+  #p-place li[data-cam]:hover { background:var(--well) }
+  #p-place .none { color:var(--dim); font-size:12px; margin:0 }
+  .area-pin { display:grid; place-items:center; width:30px; height:30px; border-radius:50% 50% 50% 4px;
+               transform:rotate(-45deg); background:var(--ink); border:2px solid var(--panel); box-shadow:0 1px 4px #0006 }
+  .area-pin span { transform:rotate(45deg); width:8px; height:8px; border-radius:50%; background:var(--panel) }
+  .grab { display:none }
+
+  .view { position:relative; width:100%; max-width:100%; aspect-ratio:16/9; background:#111110;
+          border-radius:8px; overflow:hidden; display:grid; place-items:center }
+  .view img, .view video, .view iframe { width:100%; height:100%; object-fit:cover; border:0; display:block }
+  .view .msg { color:#a8a59d; font-size:12px; text-align:center; padding:12px; line-height:1.7 }
+  .view .msg a { color:#f3f1ec; text-underline-offset:3px }
+  .tag { position:absolute; top:8px; left:8px; z-index:2; display:flex; align-items:center; gap:6px;
+         font:500 10px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase;
+         padding:5px 7px; border-radius:4px; background:#000000a6; color:#e9e7e1 }
+  .tag::before { content:""; width:6px; height:6px; border-radius:50% }
+  .tag.live::before { background:#5fbf80 } .tag.snap::before { background:#b5b1a8 }
+
+  /* ---- wall ---- */
+  #wall { position:absolute; inset:0; z-index:700; background:var(--bg); display:none; overflow:auto;
+          padding:calc(env(safe-area-inset-top, 0px) + 64px) var(--gut) calc(var(--gut) + env(safe-area-inset-bottom, 0px)) }
+  #wall.open { display:block }
+  #wall .hint { position:absolute; top:calc(env(safe-area-inset-top, 0px) + 18px); left:var(--gut); right:var(--gut);
+                display:flex; justify-content:space-between; align-items:center; gap:8px; color:var(--dim); font-size:12px }
+  #grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr)) }
+  #grid .cell { background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; cursor:pointer }
+  #grid .cell:hover { border-color:var(--ink) }
+  #grid .cell .view { border-radius:0 }
+  #grid .cell .cap { padding:8px 10px; font-size:12px; color:var(--dim);
+                     white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  #grid .cell:has(.view.offline) { display:none }
+
+  /* ---- map furniture ---- */
+  /* cameras are squares with a lens glyph; flood sensors stay round - the
+     shape says which is which before the colour does */
+  .cam { display:grid; place-items:center; border-radius:6px; border:1.5px solid var(--panel);
+         background:var(--still); box-shadow:0 1px 3px #0004; color:#fff }
+  .cam.live { background:var(--live) }
+  .cam svg { width:12px; height:12px; fill:currentColor }
+  .cam-cluster { display:grid; place-items:center; border-radius:8px; background:var(--panel);
+                 color:var(--ink); border:1.5px solid var(--live); box-shadow:var(--shadow);
+                 font:500 11px/1 var(--mono) }
+  .cam-cluster.still { border-color:var(--still) }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background:var(--panel); color:var(--ink); box-shadow:var(--shadow) }
+  .leaflet-popup-content-wrapper { border-radius:var(--r); border:1px solid var(--line) }
+  .leaflet-popup-content { margin:12px 14px; font-size:13px; line-height:1.5 }
+  .leaflet-popup-content a { color:var(--ink); text-underline-offset:3px; padding:3px 0 }
+  .leaflet-container a.leaflet-popup-close-button { color:var(--dim); width:32px; height:32px; font-size:20px }
+  .leaflet-tooltip { background:var(--panel); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); font-size:12px }
+  .leaflet-tooltip-top::before { border-top-color:var(--line) }
+  .reading { font-family:var(--mono); font-size:12px; color:var(--dim) }
+
+  @media (max-width:720px) {
+    :root { --gut:10px }
+    #bar { max-width:none }
+    .key { padding:0 12px }
+    .key .label-long { display:none }
+    .leaflet-control-zoom { display:none }
+    #panel { width:100%; height:66%; top:auto; bottom:0; border-left:0; border-top:1px solid var(--line);
+             border-radius:14px 14px 0 0; transform:translateY(105%); padding-top:0 }
+    #panel.open { transform:none }
+    .grab { display:block; width:36px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0 }
+    #panel header { padding-top:10px }
+    .legend { grid-template-columns:1fr }
+  }
+  body.solo > *:not(#solo):not(.solo-cap) { display:none !important }
+  #solo { position:fixed; inset:0; width:100%; max-width:none; aspect-ratio:auto; border-radius:0; background:#000 }
+  #solo video, #solo img { object-fit:contain }
+  .solo-cap { position:fixed; left:8px; top:calc(36px + env(safe-area-inset-top, 0px)); z-index:3; max-width:calc(100% - 24px);
+              padding:6px 10px; border-radius:6px; background:#000000a6; color:#eee; font-size:13px; pointer-events:none }
+  @media (prefers-reduced-motion: reduce) { #panel, .switch input, .switch input::after { transition:none } }
+</style>
+
+<div id="map"></div>
+
+<div id="bar">
+  <div class="row">
+    <input id="q" type="search" autocomplete="off" data-i18n-ph="search">
+    <button class="key" id="wallbtn" data-i18n="wall" data-i18n-title="wallTitle">Wall</button>
+    <button class="key" id="filtersbtn" aria-expanded="false" aria-controls="filters"><span class="lamp"></span><span data-i18n="layers">Layers</span></button>
+    <button class="key" id="langbtn" lang="th">TH</button>
+  </div>
+  <div id="count" class="mono" data-i18n="loading">Loading cameras…</div>
+  <div id="filters" hidden>
+    <div class="group">
+      <h3 data-i18n="hFlood">Flood</h3>
+      <label class="switch"><input type="checkbox" id="flood" checked><span><span data-i18n="floodLayer">River levels &amp; flooded roads</span><small data-i18n="floodSrc">thaiwater.net · updates every 10 min</small></span></label>
+      <label class="switch"><input type="checkbox" id="radar"><span><span data-i18n="radar">Rain radar</span><small data-i18n="radarSrc">RainViewer · updates every 10 min</small></span></label>
+    </div>
+    <div class="group">
+      <h3 data-i18n="hCameras">Cameras</h3>
+      <label class="switch"><input type="checkbox" id="liveonly" checked> <span data-i18n="liveOnly">Live video only</span></label>
+    </div>
+    <div class="group">
+      <h3 data-i18n="hSources">Sources</h3>
+      <div id="src"></div>
+    </div>
+    <div class="group">
+      <h3 data-i18n="hKey">Key</h3>
+      <div class="legend">
+        <span><i class="dot sq" style="background:var(--live)"></i><span data-i18n="kLive">Live video</span></span>
+        <span><i class="dot sq" style="background:var(--still)"></i><span data-i18n="kStill">Still image or external viewer</span></span>
+        <span><i class="dot" style="background:var(--wl-high)"></i><span data-i18n="kHigh">River high</span></span>
+        <span><i class="dot" style="background:var(--wl-over)"></i><span data-i18n="kOver">River over the bank</span></span>
+        <span><i class="dot dia" style="background:var(--wl-over)"></i><span data-i18n="kCanalCrit">Canal critical (BMA)</span></span>
+        <span><i class="dot dia" style="background:var(--alert)"></i><span data-i18n="kCanalAlert">Canal alert (BMA)</span></span>
+        <span><i class="dot" style="background:var(--road)"></i><span data-i18n="kRoad">Road flooded, sized by cm</span></span>
+      </div>
+      <p class="reading" style="margin:10px 0 0" data-i18n="areaHint">Long-press the map (right-click on a computer) to see readings and cameras around that spot.</p>
+    </div>
+    <div class="group"><button class="key" id="rand" data-i18n="random">Show a random camera</button></div>
+  </div>
+</div>
+
+<div id="panel" role="dialog" aria-labelledby="p-name">
+  <div class="grab"></div>
+  <header>
+    <button id="close" data-i18n-aria="close">×</button>
+    <h2 id="p-name">—</h2>
+    <div class="sub" id="p-sub"></div>
+  </header>
+  <div class="body">
+    <div class="view" id="p-view"></div>
+    <div class="row">
+      <button class="key" id="p-toggle">Live video</button>
+      <button class="key" id="p-open">Open image ↗</button>
+    </div>
+    <p id="p-meta" class="mono"></p>
+    <div id="p-place" hidden></div>
+  </div>
+</div>
+
+<div id="toast" role="status" hidden></div>
+
+<div id="wall">
+  <div class="hint"><span data-i18n="wallHint">Cameras in view. Tap one to open it.</span><button class="key" id="wallclose" data-i18n="backToMap">Back to map</button></div>
+  <div id="grid"></div>
+</div>
+
+<script>
+const SOURCES = {
+  caltrans: { en: "Caltrans (California)" },
+  on511:    { en: "Ontario 511 (Canada)" },
+  windy:    { en: "Windy webcams" },
+  youtube:  { en: "YouTube live",                             th: "ถ่ายทอดสด YouTube" },
+  itic:     { en: "Bangkok + highway cams (iTIC / Longdo)",   th: "กล้อง กทม. และทางหลวง (iTIC / Longdo)" },
+  thaiwater:{ en: "Thai river & dam cams (thaiwater.net)",    th: "กล้องแม่น้ำและเขื่อน (thaiwater.net)" },
+  doh:      { en: "Thai highways, both directions (DOH)",     th: "ทางหลวง ขาเข้าและขาออก (กรมทางหลวง)" },
+  bma:      { en: "Bangkok city traffic (BMA, opens their viewer)", th: "จราจร กทม. (เปิดดูบนเว็บ กทม.)" },
+};
+
+/* ---------- EN / TH ----------
+   Camera titles stay as each agency publishes them (mostly Thai); everything
+   the page itself says comes from here. Flood station and province names
+   switch too, since thaiwater publishes both. */
+const I18N = {
+  en: {
+    title: "Thai Flood Cams", search: "Search place or road", wall: "Wall",
+    wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
+    hFlood: "Flood", floodLayer: "River levels & flooded roads", floodSrc: "thaiwater.net · updates every 10 min",
+    radar: "Rain radar", radarSrc: "RainViewer · updates every 10 min",
+    hCameras: "Cameras", liveOnly: "Live video only", hSources: "Sources", hKey: "Key",
+    kLive: "Camera, live video", kStill: "Camera, still or on BMA's site", kHigh: "River high",
+    kOver: "River over the bank", kRoad: "Road flooded, sized by cm", random: "Show a random camera",
+    kCanalCrit: "Canal critical (BMA)", kCanalAlert: "Canal alert (BMA)",
+    areaHint: "Long-press the map (right-click on a computer) to see readings and cameras around that spot.",
+    myLocation: "My location", thisSpot: "This spot", pCanals: "Nearest canal stations (BMA)",
+    critical: "critical", alert: "alert", offlineSt: "out of order", tunnel: "Underpass",
+    canal: (m, w, c) => `level ${m ?? "–"} m (alert ${w ?? "–"}, critical ${c ?? "–"})`,
+    pRivers: "Nearest river stations", pRoads: "Road flood sensors within 2 km",
+    pCams: "Cameras within 2 km", pNone: "Nothing within range.", normal: "normal", cm: "cm",
+    pStale: "These road readings are from the last time thaiwater.net received them, not live.",
+    locate: "Show my location", locDenied: "Location is blocked. Allow it for this site in your browser settings.",
+    locFail: "Couldn't find your location. Try again outdoors or with Wi-Fi on.",
+    close: "Close", wallHint: "Cameras in view. Tap one to open it.", backToMap: "Back to map",
+    langBtn: "TH", langAria: "เปลี่ยนเป็นภาษาไทย",
+    count: (n, l, off) => `${n} cameras · ${l} live` + (off ? ` · ${off} unmapped (in Wall)` : ""),
+    floodNote: f => ` · rivers ${when(f.riverAt)}: ${f.over} over bank, ${f.high} high`
+      + (f.canalAt ? ` · canals ${when(f.canalAt)}: ${f.ccrit} critical, ${f.calert} alert` : "")
+      + (f.roadStale ? ` · Bangkok road sensors last reported ${when(f.roadAt)}`
+                     : ` · ${f.wet} roads flooded (${when(f.roadAt)})` + (f.tun ? `, ${f.tun} underpasses` : "")),
+    floodErr: " · flood data unavailable (thaiwater.net)", noList: "No camera list. Run build_catalog.py.",
+    kindHls: "live stream", kindWindy: "still · updates every few min · timelapse available",
+    kindYt: "YouTube live", kindBma: "live on BMA's site", kindSnap: "still · refreshes every 5s",
+    clock: (hm, day) => `~${hm} local, ${day ? "day" : "night"}`,
+    liveVideo: "Live video", stillImage: "Still image", timelapse: "Timelapse",
+    openImage: "Open image ↗", watchYt: "Watch on YouTube ↗", openTab: "Open in new tab ↗",
+    offline: "camera offline", streamDown: "stream unavailable", noImage: "no image for this camera",
+    noneInView: "No cameras in view. Zoom out or pan.",
+    bma: "BMA shows this camera on its own site.", bma1: "1. Open BMA Traffic", bmaOnce: "(once per visit)",
+    bma2: "2. Open this camera ↗",
+    over: "Over the bank", high: "High water", tipOver: "over bank", tipHigh: "high",
+    capacity: p => `${p}% of bank capacity`, msl: "m MSL",
+    road: cm => `${cm} cm of water on the road`, tipRoad: cm => `${cm} cm on road`, roadSensor: "BMA drainage sensor",
+  },
+  th: {
+    title: "กล้องติดตามน้ำท่วม", search: "ค้นหา", wall: "รวมกล้อง",
+    wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
+    hFlood: "น้ำท่วม", floodLayer: "ระดับน้ำและถนนน้ำท่วม", floodSrc: "thaiwater.net · อัปเดตทุก 10 นาที",
+    radar: "เรดาร์ฝน", radarSrc: "RainViewer · อัปเดตทุก 10 นาที",
+    hCameras: "กล้อง", liveOnly: "เฉพาะวิดีโอสด", hSources: "แหล่งข้อมูล", hKey: "สัญลักษณ์",
+    kLive: "กล้อง วิดีโอสด", kStill: "กล้อง ภาพนิ่ง หรือดูบนเว็บ กทม.", kHigh: "น้ำมาก",
+    kOver: "น้ำล้นตลิ่ง", kRoad: "ถนนน้ำท่วมขัง (ขนาดตามความลึก)", random: "สุ่มดูกล้อง",
+    kCanalCrit: "คลองวิกฤต (กทม.)", kCanalAlert: "คลองเฝ้าระวัง (กทม.)",
+    areaHint: "กดค้างบนแผนที่ (หรือคลิกขวาบนคอมพิวเตอร์) เพื่อดูค่าน้ำและกล้องรอบจุดนั้น",
+    myLocation: "ตำแหน่งของฉัน", thisSpot: "จุดนี้", pCanals: "สถานีวัดระดับน้ำคลองใกล้เคียง (กทม.)",
+    critical: "วิกฤต", alert: "เฝ้าระวัง", offlineSt: "ขัดข้อง", tunnel: "อุโมงค์ทางลอด",
+    canal: (m, w, c) => `ระดับ ${m ?? "–"} ม. (เฝ้าระวัง ${w ?? "–"}, วิกฤต ${c ?? "–"})`,
+    pRivers: "สถานีวัดระดับน้ำใกล้เคียง", pRoads: "เซนเซอร์น้ำท่วมถนนในรัศมี 2 กม.",
+    pCams: "กล้องในรัศมี 2 กม.", pNone: "ไม่มีในระยะนี้", normal: "ปกติ", cm: "ซม.",
+    pStale: "ค่าถนนเหล่านี้เป็นข้อมูลล่าสุดที่ thaiwater.net ได้รับ ไม่ใช่ค่าสด",
+    locate: "แสดงตำแหน่งของฉัน", locDenied: "ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง เปิดสิทธิ์ให้เว็บนี้ในการตั้งค่าเบราว์เซอร์",
+    locFail: "หาตำแหน่งไม่ได้ ลองใหม่อีกครั้งในที่โล่งหรือเปิด Wi-Fi",
+    close: "ปิด", wallHint: "กล้องในพื้นที่ที่แสดง แตะเพื่อเปิดดู", backToMap: "กลับไปที่แผนที่",
+    langBtn: "EN", langAria: "Switch to English",
+    count: (n, l, off) => `กล้อง ${n} · สด ${l}` + (off ? ` · ไม่มีพิกัด ${off} (ดูใน “รวมกล้อง”)` : ""),
+    floodNote: f => ` · แม่น้ำ ${when(f.riverAt)}: ล้นตลิ่ง ${f.over} · น้ำมาก ${f.high}`
+      + (f.canalAt ? ` · คลอง ${when(f.canalAt)}: วิกฤต ${f.ccrit} · เฝ้าระวัง ${f.calert}` : "")
+      + (f.roadStale ? ` · เซนเซอร์ถนน กทม. รายงานล่าสุด ${when(f.roadAt)}`
+                     : ` · ถนนน้ำท่วม ${f.wet} จุด (${when(f.roadAt)})` + (f.tun ? ` · อุโมงค์ ${f.tun}` : "")),
+    floodErr: " · โหลดข้อมูลน้ำไม่ได้ (thaiwater.net)", noList: "ไม่พบรายชื่อกล้อง ให้รัน build_catalog.py",
+    kindHls: "สตรีมสด", kindWindy: "ภาพนิ่ง · อัปเดตทุกไม่กี่นาที · มีไทม์แลปส์",
+    kindYt: "ถ่ายทอดสด YouTube", kindBma: "ดูสดบนเว็บ กทม.", kindSnap: "ภาพนิ่ง · รีเฟรชทุก 5 วินาที",
+    clock: (hm, day) => `~${hm} น. เวลาท้องถิ่น (${day ? "กลางวัน" : "กลางคืน"})`,
+    liveVideo: "วิดีโอสด", stillImage: "ภาพนิ่ง", timelapse: "ไทม์แลปส์",
+    openImage: "เปิดภาพ ↗", watchYt: "ดูบน YouTube ↗", openTab: "เปิดในแท็บใหม่ ↗",
+    offline: "กล้องออฟไลน์", streamDown: "สตรีมใช้งานไม่ได้", noImage: "ไม่มีภาพจากกล้องนี้",
+    noneInView: "ไม่มีกล้องในพื้นที่นี้ ลองซูมออกหรือเลื่อนแผนที่",
+    bma: "กล้องนี้ดูได้บนเว็บของ กทม. เท่านั้น", bma1: "1. เปิดเว็บ BMA Traffic", bmaOnce: "(ครั้งแรกที่เข้าใช้)",
+    bma2: "2. เปิดกล้องนี้ ↗",
+    over: "น้ำล้นตลิ่ง", high: "น้ำมาก", tipOver: "ล้นตลิ่ง", tipHigh: "น้ำมาก",
+    capacity: p => `ความจุลำน้ำ ${p}%`, msl: "ม.รทก.",
+    road: cm => `น้ำท่วมขังบนถนน ${cm} ซม.`, tipRoad: cm => `น้ำ ${cm} ซม.`, roadSensor: "เซนเซอร์สำนักการระบายน้ำ กทม.",
+  },
+};
+const LANG_KEY = "livecam.lang";
+let lang = (() => { try { return localStorage.getItem(LANG_KEY); } catch { return null; } })()
+        || ((navigator.language || "").toLowerCase().startsWith("th") ? "th" : "en");
+// "08:30" for today, "25 Sep 20:10" otherwise; thaiwater times are Bangkok time
+const when = str => {
+  if (!str) return "—";
+  const d = new Date(String(str).replace(" ", "T") + "+07:00");
+  const loc = lang === "th" ? "th-TH" : "en-GB", tz = { timeZone: "Asia/Bangkok" };
+  const today = d.toLocaleDateString(loc, tz) === new Date().toLocaleDateString(loc, tz);
+  return d.toLocaleString(loc, { ...tz, hour: "2-digit", minute: "2-digit", ...(today ? {} : { day: "numeric", month: "short" }) });
+};
+const t = (k, ...a) => { const v = I18N[lang][k] ?? I18N.en[k]; return typeof v === "function" ? v(...a) : v; };
+const srcName = s => SOURCES[s]?.[lang] || SOURCES[s]?.en || s;
+const bi = o => (lang === "th" ? o?.th || o?.en : o?.en || o?.th) || "";   // {en, th} from thaiwater
+const $ = s => document.querySelector(s);
+let cams = [], markers = null, current = null, cleanup = () => {};
+
+/* ---------- players: four cases, that's every public cam ---------- */
+
+/* A dead DOT camera does NOT return an error. It returns HTTP 200 with a
+   "Temporarily Unavailable" placeholder JPEG, regenerated per request with a
+   fresh timestamp burned in - so onerror never fires, Last-Modified is always
+   current, and the bytes differ every time. Byte hashing can't catch it.
+   Sampling pixels can: the placeholder is overwhelmingly near-white and a real
+   camera frame never is.
+   Measured on Caltrans: placeholder frames sample 0.65-0.77 near-white,
+   real frames 0.00, so 0.5 sits between with room on both sides.
+   Do NOT pass willReadFrequently here - it moves Chromium onto the CPU
+   rasterizer, which downscales with a different filter and shifts the reading
+   by ~0.12. One read per camera per 5s isn't a read-frequently workload anyway.
+   ponytail: a genuine whiteout (heavy snow, fog, sun straight into the lens)
+   could still read as offline; no daytime sample was available to test against.
+   If that bites, switch to byte size - the placeholder is a near-constant
+   ~16.6KB while real frames run 18-29KB (see check.py). */
+const BLANK_FRAC = 0.5;
+const probe = document.createElement("canvas");
+function looksBlank(img) {
+  const n = 16;
+  probe.width = probe.height = n;
+  const g = probe.getContext("2d");
+  let px;
+  try {
+    g.drawImage(img, 0, 0, n, n);
+    px = g.getImageData(0, 0, n, n).data;
+  } catch {
+    return false;   // tainted canvas (no CORS header) - can't tell, assume live
+  }
+  if (img.naturalWidth < 32) return true;   // iTIC serves a 1px gif when a cam is down
+  let white = 0;
+  for (let i = 0; i < px.length; i += 4)
+    if (px[i] > 235 && px[i + 1] > 235 && px[i + 2] > 235) white++;
+  return white / (n * n) > BLANK_FRAC;
+}
+
+// Refreshing still image. The reliable layer: DOT snapshot cams are CORS-open
+// and update every 5s. Preload-then-swap so it doesn't flash white.
+function snapshot(cam, box, every = 5000, label = "snapshot") {
+  const img = new Image();
+  img.alt = "";   // the panel heading / caption already names it
+  const msg = document.createElement("div");
+  msg.className = "msg";
+  msg.textContent = t("offline");
+  msg.hidden = true;
+  box.append(tag(label === "youtube" ? "live" : "snap", label), img, msg);
+
+  let dead = false;
+  const show = ok => {
+    img.hidden = !ok; msg.hidden = ok;
+    box.classList.toggle("offline", !ok);
+  };
+
+  const load = (useCors = true) => {
+    const next = new Image();
+    // crossOrigin is what makes the blank check possible; without an
+    // Access-Control-Allow-Origin header the canvas taints and we can't read
+    // pixels. If a source doesn't send one the image fails outright, so retry
+    // bare and just skip the check for that camera.
+    if (useCors) next.crossOrigin = "anonymous";
+    next.onload = () => {
+      if (dead) return;
+      const ok = !looksBlank(next);
+      if (ok) img.src = next.src;
+      show(ok);
+    };
+    next.onerror = () => {
+      if (dead) return;
+      if (useCors) load(false); else show(false);
+    };
+    next.src = cam.i + (cam.i.includes("?") ? "&" : "?") + "t=" + Date.now();
+  };
+
+  load();
+  // Keep polling even while offline - these cameras come back on their own.
+  const t = setInterval(() => load(), every);
+  return () => { dead = true; clearInterval(t); };
+}
+
+function hls(cam, box, onFail) {
+  const v = Object.assign(document.createElement("video"),
+    { muted: true, autoplay: true, playsInline: true, controls: false });
+  box.append(tag("live", "live"), v);
+  // The autoplay attribute alone doesn't reliably start a muted stream, so ask.
+  v.addEventListener("canplay", () => v.play().catch(() => {}));
+  // hls.js first, native HLS only as the fallback. Chromium reports
+  // canPlayType("application/vnd.apple.mpegurl") === "maybe" and then can't
+  // actually play it, so sniffing native support first sends every stream
+  // down a dead path. MSE-less browsers (real Safari) land on native below.
+  if (window.Hls && Hls.isSupported()) {
+    const h = new Hls({ liveDurationInfinity: true });
+    h.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) { h.destroy(); onFail(); } });
+    h.loadSource(cam.h); h.attachMedia(v);
+    return () => h.destroy();
+  }
+  v.src = cam.h; v.onerror = onFail;
+  return () => v.removeAttribute("src");
+}
+
+function iframePlayer(url, box, cls, label) {
+  const f = document.createElement("iframe");
+  f.allow = "autoplay; encrypted-media; picture-in-picture";
+  f.allowFullscreen = true;
+  f.src = url;
+  box.append(tag(cls, label), f);
+  return () => { f.src = "about:blank"; };
+}
+function youtube(cam, box) {
+  return iframePlayer(
+    `https://www.youtube.com/embed/${cam.yt}?autoplay=1&mute=1&playsinline=1`, box, "live", "youtube");
+}
+
+function tag(cls, text) {
+  const s = document.createElement("span");
+  s.className = "tag " + cls; s.textContent = text; return s;
+}
+function fail(box, why) {
+  box.innerHTML = `<div class="msg">${why}</div>`;
+}
+
+// Returns a cleanup function. wantVideo falls back to snapshot on any failure —
+// only ~30% of DOT HLS endpoints are actually up at a given moment.
+function mount(cam, box, wantVideo) {
+  box.innerHTML = "";
+  if (cam.yt) {
+    // The Wall would otherwise mount two dozen YouTube iframes at once.
+    // YouTube's own live thumbnail is the cheap stand-in - it's the same
+    // "refreshing still" shape as a DOT snapshot. i.ytimg.com sends no
+    // Access-Control-Allow-Origin, so snapshot()'s bare-load retry kicks in
+    // and the blank check is skipped for these (tainted canvas -> "assume
+    // live"), which is the right call: a YouTube thumbnail is never the
+    // Caltrans placeholder. Refresh slowly, they're cached for 5 min anyway.
+    // YouTube refuses to embed into a page opened from disk (livecam.html), so
+    // there it's the thumbnail plus the "Watch on YouTube" button.
+    return wantVideo && location.protocol !== "file:"
+      ? youtube(cam, box)
+      : snapshot({ ...cam, i: `https://i.ytimg.com/vi/${cam.yt}/hqdefault_live.jpg` },
+                 box, 60000, "youtube");
+  }
+  if (cam.link) {
+    // BMA only serves the picture inside its own viewer, and only after its
+    // home page has started a session - so it's two links, not an image.
+    box.classList.add("offline");   // nothing to show in the Wall
+    box.innerHTML = `<div class="msg">${t("bma")}<br><br>
+      <a href="https://cpudapp.bangkok.go.th/bmatraffic/index.aspx" target="_blank" rel="noopener">${t("bma1")}</a> ${t("bmaOnce")}<br>
+      <a href="${cam.link}" target="_blank" rel="noopener">${t("bma2")}</a></div>`;
+    return () => {};
+  }
+  if (cam.embed) {
+    // Windy is a snapshot network: the still is the freshest frame, and the
+    // embed is a recent *timelapse*, not a live stream. So default to the
+    // snapshot and label the player honestly.
+    return wantVideo ? iframePlayer(cam.embed, box, "snap", "timelapse")
+                     : (cam.i ? snapshot(cam, box, 60000, "windy")
+                              : iframePlayer(cam.embed, box, "snap", "timelapse"));
+  }
+  // No still to fall back on (most iTIC cams) -> the stream is the only view,
+  // so the Wall plays it too.
+  if ((wantVideo || !cam.i) && cam.h) {
+    let fellBack = false;
+    const stop = hls(cam, box, () => {
+      if (fellBack) return; fellBack = true;
+      box.innerHTML = "";
+      cleanup = cam.i ? snapshot(cam, box) : (fail(box, t("streamDown")), () => {});
+    });
+    return () => stop();
+  }
+  if (cam.i) return snapshot(cam, box);
+  fail(box, t("noImage"));
+  return () => {};
+}
+
+/* ---------- approximate local time from longitude ----------
+   ponytail: lon/15 instead of a timezone database. Off by up to an hour near
+   borders and ignores DST — fine for a day/night glyph, not for scheduling. */
+function localClock(lon) {
+  if (lon == null) return "";
+  const h = (new Date().getUTCHours() + new Date().getUTCMinutes() / 60 + lon / 15 + 24) % 24;
+  const hh = Math.floor(h), mm = Math.floor((h % 1) * 60);
+  return t("clock", `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`, hh > 5 && hh < 19);
+}
+
+/* ---------- map ---------- */
+const map = L.map("map", { worldCopyJump: true, zoomControl: false }).setView([13.5, 100.9], 6);  // Thailand
+L.control.zoom({ position: "bottomright" }).addTo(map);
+
+// "Locate me": the browser asks the viewer for permission; nothing leaves the device.
+const Locate = L.Control.extend({ options: { position: "bottomright" }, onAdd() {
+  const b = L.DomUtil.create("button"); b.id = "locate";
+  b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/></svg>';
+  L.DomEvent.disableClickPropagation(b);
+  b.onclick = () => { b.classList.add("busy"); map.locate({ setView: true, maxZoom: 14, enableHighAccuracy: true }); };
+  return b;
+} });
+new Locate().addTo(map);
+let me, meRing;
+map.on("locationfound", e => {
+  $("#locate").classList.remove("busy");
+  me?.remove(); meRing?.remove();
+  meRing = L.circle(e.latlng, { radius: e.accuracy, weight: 1, color: css("--accent"), fillOpacity: .08, interactive: false }).addTo(map);
+  me = L.marker(e.latlng, { icon: L.divIcon({ className: "me", iconSize: [16, 16] }), zIndexOffset: 1100, interactive: false }).addTo(map);
+  showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("myLocation") });
+});
+map.on("locationerror", e => {
+  $("#locate").classList.remove("busy");
+  toast(e.code === 1 ? t("locDenied") : t("locFail"));
+});
+function toast(msg) {
+  const el = $("#toast"); el.textContent = msg; el.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 4000);
+}
+map.createPane("radar").style.zIndex = 250;   // above tiles, outside the dark-mode tile filter
+// CARTO's free basemap now stamps "API KEY REQUIRED" over every tile.
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '&copy; OpenStreetMap', maxZoom: 19,
+}).addTo(map);
+
+function visible() {
+  const q = $("#q").value.trim().toLowerCase();
+  const liveOnly = $("#liveonly").checked;
+  const src = new Set([...document.querySelectorAll("#src input:checked")].map(b => b.value));
+  return cams.filter(c =>
+    src.has(c.s) &&
+    (!liveOnly || c.h || c.yt) &&
+    (!q || (c.n + " " + c.p).toLowerCase().includes(q)));
+}
+
+// SVG fills can't take var(), so read the palette at draw time (and redraw on theme change)
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// orange lamp on "Layers" whenever something is switched away from the default
+const lamp = () => $("#filtersbtn").classList.toggle("on",
+  $("#flood").checked || $("#radar").checked || $("#liveonly").checked
+  || !!document.querySelector("#src input:not(:checked)"));
+
+const LENS = '<svg viewBox="0 0 16 16"><path d="M2 4.5h2.2l1-1.5h5.6l1 1.5H14a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Zm6 1.8a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4Z"/></svg>';
+const CAM_ICON = {   // colours come from CSS tokens, so they follow the theme with no redraw
+  live:  L.divIcon({ className: "cam live", html: LENS, iconSize: [22, 22] }),
+  still: L.divIcon({ className: "cam", html: LENS, iconSize: [18, 18] }),
+};
+const isLive = c => !!(c.h || c.yt);
+
+function draw() {
+  const list = visible();
+  if (markers) map.removeLayer(markers);
+  markers = L.markerClusterGroup({
+    chunkedLoading: true, maxClusterRadius: 40, disableClusteringAtZoom: 11, showCoverageOnHover: false,
+    iconCreateFunction: cl => L.divIcon({
+      html: cl.getChildCount(), iconSize: [32, 32],
+      className: "cam-cluster" + (cl.getAllChildMarkers().some(m => m.options.icon === CAM_ICON.live) ? "" : " still"),
+    }),
+  });
+  for (const c of list) {
+    if (c.y == null) continue;      // roaming streams (ISS, cam networks) have no fixed point
+    const m = L.marker([c.y, c.x], { icon: isLive(c) ? CAM_ICON.live : CAM_ICON.still, riseOnHover: true });
+    m.on("click", () => openCam(c));
+    m.bindTooltip(c.n, { direction: "top", offset: [0, -10] });
+    markers.addLayer(m);
+  }
+  map.addLayer(markers);
+  const off = list.filter(c => c.y == null).length;
+  $("#count").textContent = t("count", list.length.toLocaleString(),
+    list.filter(c => c.h || c.yt).length.toLocaleString(), off)
+    + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood) : "");
+  lamp();
+}
+
+/* ---------- single-camera panel ---------- */
+let showingVideo = false;   // what the panel toggle currently shows
+/* ---------- area summary: what's around a point (my location, or a long-press) ---------- */
+const distKm = (la, lo, la2, lo2) => Math.hypot(la - la2, (lo - lo2) * Math.cos(la * Math.PI / 180)) * 111;
+let areaPin = null;
+async function showArea(p) {
+  cleanup(); cleanup = () => {}; current = null; pin?.remove(); pin = null;
+  $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false);
+  areaPin?.remove();
+  if (p.pin) areaPin = L.marker([p.y, p.x], { zIndexOffset: 1050, interactive: false,
+    icon: L.divIcon({ className: "", html: '<div class="area-pin"><span></span></div>', iconSize: [30, 30], iconAnchor: [4, 30] }) }).addTo(map);
+  $("#p-name").textContent = p.name;
+  $("#p-sub").textContent = `${p.y.toFixed(4)}, ${p.x.toFixed(4)}`;
+  for (const id of ["#p-view", "#p-meta", "#panel .row"]) $(id).hidden = true;
+  const box = $("#p-place"); box.hidden = false;
+  box.innerHTML = `<p class="none">${t("loading")}</p>`;
+  $("#panel").classList.add("open");
+  if (!floodData) { try { await loadFlood(); } catch {} }
+  if ($("#p-place").hidden) return;   // user moved on
+  box.innerHTML = placeSummary(p);
+  box.querySelectorAll("[data-cam]").forEach(b => {
+    b.onclick = () => openCam(cams[+b.dataset.cam]);
+    b.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); b.click(); } };
+  });
+}
+map.on("contextmenu", e => showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("thisSpot"), pin: true }));
+function placeSummary(p) {
+  const near = (list, lat, lon, km) => list.map(r => [distKm(p.y, p.x, lat(r), lon(r)), r])
+    .filter(([d]) => d <= km).sort((a, z) => a[0] - z[0]);
+  const kmTxt = d => d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
+  const row = (dotColor, main, sub, val, cam) =>
+    `<li${cam != null ? ` data-cam="${cam}" role="button" tabindex="0"` : ""}><i class="dot${cam != null ? " sq" : ""}" style="background:${dotColor}"></i>`
+    + `<span>${esc(main)}<small>${esc(sub)}</small></span><span class="v">${esc(val)}</span></li>`;
+  const out = [];
+  if (floodData) {
+    const LV = { 5: [css("--wl-over"), t("over")], 4: [css("--wl-high"), t("high")] };
+    const rivers = near(floodData.wl.waterlevel_data.data.filter(r => r.station.tele_station_lat),
+      r => r.station.tele_station_lat, r => r.station.tele_station_long, 8).slice(0, 3);
+    out.push(`<section><h3>${t("pRivers")}</h3>` + (rivers.length ? "<ul>" + rivers.map(([d, r]) => {
+      const [c, word] = LV[r.situation_level] || [css("--still"), t("normal")];
+      return row(c, bi(r.station.tele_station_name), `${kmTxt(d)} · ${when(r.waterlevel_datetime)}`,
+                 `${word} · ${r.storage_percent ?? "–"}%`);
+    }).join("") + "</ul>" : `<p class="none">${t("pNone")}</p>`) + "</section>");
+    const CL = { 4: [css("--wl-over"), t("critical")], 3: [css("--alert"), t("alert")], 2: [css("--still"), t("normal")] };
+    const canals = near(floodData.canals, c => c.y, c => c.x, 3).slice(0, 4);
+    if (canals.length) out.push(`<section><h3>${t("pCanals")}</h3><ul>` + canals.map(([d, c]) => {
+      const [col, word] = CL[c.lvl] || [css("--still"), t("offlineSt")];
+      return row(col, bi(c), `${kmTxt(d)} · ${when(c.ts)}`, `${word} · ${c.m ?? "–"} m`);
+    }).join("") + "</ul></section>");
+    const weekAgo = Date.now() - 7 * 864e5;   // dead sensors linger in the feeds for months
+    const roads = near(floodData.roads.filter(r => r.t > weekAgo), r => r.y, r => r.x, 2).slice(0, 5);
+    out.push(`<section><h3>${t("pRoads")}</h3>` + (roads.length ? "<ul>" + roads.map(([d, r]) =>
+      row(r.cm > 0 ? css("--road") : css("--still"), bi(r),
+          `${kmTxt(d)} · ${when(r.ts)}`, `${r.cm ?? "–"} ${t("cm")}`)).join("") + "</ul>"
+      + (flood?.roadStale ? `<p class="none" style="margin-top:6px">${t("pStale")}</p>` : "")
+      : `<p class="none">${t("pNone")}</p>`) + "</section>");
+  }
+  // every camera nearby, whatever the filters say - this is "what can I see around here"
+  const nc = near(cams.filter(c => c.y != null), c => c.y, c => c.x, 2).slice(0, 8);
+  out.push(`<section><h3>${t("pCams")}</h3>` + (nc.length ? "<ul>" + nc.map(([d, c]) =>
+    row(isLive(c) ? css("--live") : css("--still"), c.n, `${kmTxt(d)} · ${srcName(c.s)}`,
+        isLive(c) ? t("liveVideo") : c.link ? "BMA ↗" : t("stillImage"), cams.indexOf(c))).join("") + "</ul>"
+    : `<p class="none">${t("pNone")}</p>`) + "</section>");
+  return out.join("");
+}
+
+function panelText(cam) {
+  $("#p-name").textContent = cam.n;
+  $("#p-sub").textContent = [cam.p, srcName(cam.s)].filter(Boolean).join(" · ");
+  const kind = cam.h ? t("kindHls") : cam.embed ? t("kindWindy")
+             : cam.yt ? t("kindYt") : cam.link ? t("kindBma") : t("kindSnap");
+  $("#p-meta").textContent = [localClock(cam.x), kind].filter(Boolean).join(" · ");
+  $("#p-toggle").textContent = showingVideo ? t("stillImage") : cam.h ? t("liveVideo") : t("timelapse");
+  $("#p-open").textContent = cam.yt ? t("watchYt") : cam.h ? t("openTab") : t("openImage");
+}
+// not "open": a global function by that name replaces window.open
+function openCam(cam) {
+  cleanup(); current = cam; showingVideo = false;
+  for (const id of ["#p-view", "#p-meta", "#panel .row"]) $(id).hidden = false;
+  $("#p-place").hidden = true;
+  panelText(cam);
+  // only offer the switch when there's a still to switch back to
+  $("#p-toggle").style.display = ((cam.h && cam.i) || cam.embed) ? "" : "none";
+  $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false);
+  $("#p-open").style.display = (cam.i || cam.yt || cam.embed || cam.h) ? "" : "none";
+  $("#panel").classList.add("open");
+  cleanup = mount(cam, $("#p-view"), !!cam.yt);
+  pin?.remove(); pin = null;
+  if (cam.y != null) {
+    pin = L.marker([cam.y, cam.x], { zIndexOffset: 1000 }).bindTooltip(cam.n).addTo(map);
+    map.panTo([cam.y, cam.x]);
+  }
+}
+let pin = null;   // marks the camera open in the panel
+$("#close").onclick = () => { cleanup(); cleanup = () => {}; pin?.remove(); pin = null; $("#panel").classList.remove("open"); };
+$("#p-toggle").onclick = () => {
+  showingVideo = !showingVideo;
+  panelText(current);
+  cleanup(); cleanup = mount(current, $("#p-view"), showingVideo);
+};
+// Live streams open this page in "solo" mode (#cam-<id>): one camera filling the
+// tab, with native controls for fullscreen. A raw .m3u8 link only plays in Safari.
+$("#p-open").onclick = () => window.open(
+  current.yt ? `https://www.youtube.com/watch?v=${current.yt}`
+  : current.h ? `${location.pathname}#cam-${current.id}`
+  : current.i || current.embed, "_blank", "noopener");
+
+/* ---------- wall: every camera in the current viewport ---------- */
+const WALL_MAX = 24;               // ponytail: hard cap. 24 refreshing JPEGs is
+let wallStops = [];                // already ~5 req/s; raise it and the tab crawls.
+function openWall() {
+  const b = map.getBounds();
+  const list = visible()
+    .filter(c => c.y == null || b.contains([c.y, c.x]))
+    .sort((a, z) => (a.y == null ? -1 : 0) - (z.y == null ? -1 : 0))  // roaming first
+    .slice(0, WALL_MAX);
+  const grid = $("#grid"); grid.innerHTML = "";
+  wallStops.forEach(f => f()); wallStops = [];
+  if (!list.length) grid.innerHTML = `<p class="msg" style="color:var(--dim)">${t("noneInView")}</p>`;
+  list.forEach((c, i) => {
+    const cell = document.createElement("div"); cell.className = "cell";
+    const view = document.createElement("div"); view.className = "view";
+    const cap = document.createElement("div"); cap.className = "cap";
+    cap.textContent = `${c.n} · ${c.p}`;
+    cell.append(view, cap); grid.append(cell);
+    cell.onclick = () => { closeWall(); openCam(c); };
+    // stagger so 24 tiles don't fire their first fetch in the same tick
+    const t = setTimeout(() => wallStops.push(mount(c, view, false)), i * 120);
+    wallStops.push(() => clearTimeout(t));
+  });
+  $("#wall").classList.add("open");
+}
+function closeWall() {
+  wallStops.forEach(f => f()); wallStops = [];
+  $("#grid").innerHTML = ""; $("#wall").classList.remove("open");
+}
+$("#wallbtn").onclick = () => $("#wall").classList.contains("open") ? closeWall() : openWall();
+$("#rand").onclick = () => {
+  const list = visible(); if (!list.length) return;
+  const placed = list.filter(c => c.y != null); if (!placed.length) return;
+  const c = placed[Math.floor(Math.random() * placed.length)];
+  map.setView([c.y, c.x], 12); openCam(c);
+};
+$("#filtersbtn").onclick = () => {
+  const show = $("#filters").hidden;
+  $("#filters").hidden = !show;
+  $("#filtersbtn").setAttribute("aria-expanded", show);
+};
+map.on("click", () => { $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false); });
+$("#wallclose").onclick = closeWall;
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  draw(); if ($("#flood").checked) renderFlood();
+});
+addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (!$("#filters").hidden) return $("#filtersbtn").click();
+  $("#wall").classList.contains("open") ? closeWall() : $("#close").click();
+});
+
+let redraw;
+for (const el of [$("#q"), $("#liveonly"), $("#src")])
+  el.addEventListener("input", () => { clearTimeout(redraw); redraw = setTimeout(draw, 180); });
+
+// Remember *unticked* sources, so a source added by a later build shows up ticked.
+const OFF_KEY = "livecam.sourcesOff";
+const offSources = () => { try { return new Set(JSON.parse(localStorage.getItem(OFF_KEY)) || []); } catch { return new Set(); } };
+$("#src").addEventListener("input", () => {
+  const off = [...document.querySelectorAll("#src input:not(:checked)")].map(b => b.value);
+  try { localStorage.setItem(OFF_KEY, JSON.stringify(off)); } catch {}
+});
+
+/* ---------- flood layer: live, straight from thaiwater.net (CORS-open) ----------
+   River stations report situation_level 1-5 against bank height; 4 = high,
+   5 = over the bank. BMA road sensors report standing water in cm. Only the
+   ones that matter for flooding are drawn. Cameras are their own pins on the
+   map, so a sensor popup is just its reading. */
+const TW = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/";
+const floodLayer = L.layerGroup();
+let floodTimer;
+
+const esc = t => String(t ?? "").replace(/[&<>"]/g, ch => `&#${ch.charCodeAt(0)};`);
+
+let floodData = null, flood = null;   // flood: null (off) | "error" | {counts, times}
+const bkkTime = str => Date.parse(String(str).replace(" ", "T").slice(0, 16) + "+07:00");
+async function loadFlood() {
+  const [wl, road, bma] = await Promise.all([
+    fetch(TW + "waterlevel_load", { cache: "no-store" }).then(r => r.json()),
+    fetch(TW + "flood_road", { cache: "no-store" }).then(r => r.json()),
+    // BMA's own feed, copied into this repo every 20 min by a GitHub Action
+    // (BMA sends no CORS header). Missing when opened as a file - that's fine.
+    fetch("bma.json", { cache: "no-store" }).then(r => r.json()).catch(() => null),
+  ]);
+  // One road list: thaiwater's copy of the BMA sensors, overridden by BMA's own
+  // reading whenever that's newer (thaiwater's copy stalls for hours at a time).
+  const roads = new Map();
+  for (const r of road.data) {
+    const st = r.station;
+    roads.set(st.floodroad_oldcode || st.id, { th: st.floodroad_name.th, y: st.floodroad_lat, x: st.floodroad_long,
+      cm: r.floodroad_value, ts: r.floodroad_datetime, t: bkkTime(r.floodroad_datetime) });
+  }
+  for (const r of bma?.roads || []) {
+    const t = bkkTime(r.ts), old = roads.get(r.code);
+    if (!old || t > old.t) roads.set(r.code, { th: r.th, en: r.en, y: r.y, x: r.x, cm: r.cm, ts: r.ts, t });
+  }
+  floodData = { wl, roads: [...roads.values()], canals: bma?.canals || [], tunnels: bma?.tunnels || [] };
+  renderFlood();
+}
+function renderFlood() {
+  if (!floodData) return;
+  const { wl, roads, canals, tunnels } = floodData;
+  floodLayer.clearLayers();
+  let high = 0, over = 0, wet = 0, ccrit = 0, calert = 0, tun = 0;
+  const HIGH = css("--wl-high"), OVER = css("--wl-over"), ROAD = css("--road"), ALERT = css("--alert"), EDGE = css("--panel");
+  const dot = c => `<i class="dot" style="display:inline-block;vertical-align:-1px;background:${c}"></i> `;
+  for (const r of wl.waterlevel_data.data) {
+    const st = r.station, lvl = r.situation_level;
+    if (!(lvl >= 4) || !st.tele_station_lat) continue;
+    lvl === 5 ? over++ : high++;
+    const name = bi(st.tele_station_name);
+    L.circleMarker([st.tele_station_lat, st.tele_station_long], {
+      radius: lvl === 5 ? 8 : 6, weight: 2, color: EDGE, fillColor: lvl === 5 ? OVER : HIGH, fillOpacity: 1,
+    }).bindTooltip(`${name}: ${lvl === 5 ? t("tipOver") : t("tipHigh")}`)
+      .bindPopup(() => (
+        `<b>${esc(name)}</b><br>${esc(bi(r.geocode?.province_name))}<br>`
+        + `${lvl === 5 ? dot(OVER) + t("over") : dot(HIGH) + t("high")}<br>`
+        + `<span class="reading">${esc(t("capacity", r.storage_percent))}<br>`
+        + `${esc(r.diff_wl_bank_text)} ${esc(r.diff_wl_bank)} · ${esc(r.waterlevel_msl)} ${t("msl")}<br>`
+        + `${esc(r.waterlevel_datetime)}</span>`))
+      .addTo(floodLayer);
+  }
+  // Sensors go quiet without saying so, and feeds can stall for hours (thaiwater
+  // sat on 20:10 readings until the next morning). Anything older than MAX_AGE
+  // isn't drawn as current; the summary line says when readings last came in.
+  const MAX_AGE = 3 * 3600e3, fresh = t => Date.now() - t <= MAX_AGE;
+  const latest = (list, f) => list.reduce((m, r) => (f(r) || "") > m ? f(r) : m, "");
+  const riverAt = latest(wl.waterlevel_data.data, r => r.waterlevel_datetime);
+  const roadAt = latest(roads, r => r.ts), canalAt = latest(canals, r => r.ts);
+  const roadStale = !roadAt || !fresh(bkkTime(roadAt));
+
+  const canalIcon = { 4: L.divIcon({ className: "", html: '<i class="canal crit"></i>', iconSize: [11, 11] }),
+                      3: L.divIcon({ className: "", html: '<i class="canal alert"></i>', iconSize: [9, 9] }) };
+  for (const c of canals) {
+    if (!(c.lvl >= 3) || !fresh(bkkTime(c.ts))) continue;
+    c.lvl === 4 ? ccrit++ : calert++;
+    const word = c.lvl === 4 ? t("critical") : t("alert");
+    L.marker([c.y, c.x], { icon: canalIcon[c.lvl] })
+      .bindTooltip(`${bi(c)}: ${word}`)
+      .bindPopup(() => `<b>${esc(bi(c))}</b><br>${dot(c.lvl === 4 ? OVER : ALERT)}${esc(word)}<br>`
+        + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`)
+      .addTo(floodLayer);
+  }
+  for (const r of roads) {
+    if (!(r.cm > 0) || !fresh(r.t)) continue;
+    wet++;
+    L.circleMarker([r.y, r.x], {
+      radius: 5 + Math.min(r.cm, 40) / 5, weight: 2, color: EDGE, fillColor: ROAD, fillOpacity: 1,
+    }).bindTooltip(`${bi(r)}: ${t("tipRoad", r.cm)}`)
+      .bindPopup(() => `<b>${esc(bi(r))}</b><br>${dot(ROAD)}${esc(t("road", r.cm))}<br>`
+        + `<span class="reading">${esc(when(r.ts))} · ${t("roadSensor")}</span>`)
+      .addTo(floodLayer);
+  }
+  for (const tn of tunnels) {
+    const wetSides = tn.sides.filter(sd => sd.cm > 0 && fresh(bkkTime(sd.ts)));
+    if (!wetSides.length) continue;
+    tun++;
+    const cm = Math.max(...wetSides.map(sd => sd.cm));
+    L.circleMarker([tn.y, tn.x], { radius: 7 + Math.min(cm, 40) / 5, weight: 3, color: css("--ink"), fillColor: ROAD, fillOpacity: 1 })
+      .bindTooltip(`${bi(tn)}: ${t("tipRoad", cm)}`)
+      .bindPopup(() => `<b>${esc(bi(tn))}</b><br>${t("tunnel")}<br><span class="reading">`
+        + tn.sides.map(sd => `${esc(sd.dir)}: ${esc(sd.cm)} ${t("cm")} · ${esc(when(sd.ts))}`).join("<br>") + "</span>")
+      .addTo(floodLayer);
+  }
+  flood = { over, high, wet, ccrit, calert, tun, riverAt, roadAt, canalAt, roadStale };
+  draw();
+}
+$("#flood").onchange = e => {
+  clearInterval(floodTimer); flood = null;
+  if (!e.target.checked) { map.removeLayer(floodLayer); return draw(); }
+  floodLayer.addTo(map);
+  const go = () => loadFlood().catch(() => { flood = "error"; draw(); });
+  go(); floodTimer = setInterval(go, 10 * 60e3);
+};
+
+let radarLayer, radarTimer;
+async function loadRadar() {
+  const m = await fetch("https://api.rainviewer.com/public/weather-maps.json").then(r => r.json());
+  const f = m.radar.past.at(-1);
+  const next = L.tileLayer(`${m.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,
+    { opacity: .6, maxNativeZoom: 7, pane: "radar", attribution: "radar &copy; RainViewer" }).addTo(map);
+  if (radarLayer) map.removeLayer(radarLayer);
+  radarLayer = next;
+}
+$("#radar").onchange = e => {
+  lamp();
+  clearInterval(radarTimer);
+  if (radarLayer) { map.removeLayer(radarLayer); radarLayer = null; }
+  if (!e.target.checked) return;
+  loadRadar(); radarTimer = setInterval(loadRadar, 10 * 60e3);
+};
+
+fetch("cameras.json").then(r => r.json()).then(data => {
+  cams = data;
+  const off = offSources();
+  for (const s of [...new Set(cams.map(c => c.s))])
+    $("#src").insertAdjacentHTML("beforeend",
+      `<label class="switch"><input type="checkbox" value="${s}"${off.has(s) ? "" : " checked"}> <span data-src="${s}">${srcName(s)}</span></label>`);
+  applyLang();
+  const solo = /^#cam-(\d+)$/.exec(location.hash);
+  if (solo) return soloView(cams.find(c => c.id === +solo[1]));
+  if ($("#flood").checked) $("#flood").onchange({ target: $("#flood") });   // on by default
+}).catch(() => $("#count").textContent = t("noList"));
+
+function soloView(cam) {
+  if (!cam) return;
+  document.body.classList.add("solo");
+  document.title = cam.n;
+  const box = Object.assign(document.createElement("div"), { id: "solo", className: "view" });
+  const cap = Object.assign(document.createElement("div"), { className: "solo-cap", textContent: cam.n });
+  document.body.append(box, cap);
+  mount(cam, box, true);
+  // native controls give the fullscreen button (again if the player is rebuilt)
+  const controls = () => box.querySelector("video")?.setAttribute("controls", "");
+  controls();
+  new MutationObserver(controls).observe(box, { childList: true, subtree: true });
+}
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.title = t("title");
+  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll("[data-i18n-ph]")) { el.placeholder = t(el.dataset.i18nPh); el.setAttribute("aria-label", el.placeholder); }
+  for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = t(el.dataset.i18nTitle);
+  for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
+  for (const el of document.querySelectorAll("[data-src]")) el.textContent = srcName(el.dataset.src);
+  $("#locate").setAttribute("aria-label", t("locate")); $("#locate").title = t("locate");
+  $("#langbtn").textContent = t("langBtn");
+  $("#langbtn").lang = lang === "th" ? "en" : "th";
+  $("#langbtn").setAttribute("aria-label", t("langAria"));
+  if (cams.length) draw();
+  renderFlood();
+  if (current && $("#panel").classList.contains("open")) panelText(current);
+}
+$("#langbtn").onclick = () => {
+  lang = lang === "th" ? "en" : "th";
+  try { localStorage.setItem(LANG_KEY, lang); } catch {}
+  applyLang();
+};
+applyLang();
+</script>

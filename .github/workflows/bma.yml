@@ -1,0 +1,34 @@
+name: BMA flood data
+# Copies BMA's road-flood, tunnel and canal readings into bma.json so the map
+# can read them (BMA's site sends no CORS header). Every 20 min; GitHub may
+# delay scheduled runs by a few minutes when busy.
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: bma
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download
+        env:
+          UA: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+        # -f off on purpose: log BMA's status code. bma_fetch.py rejects a 403 page itself.
+        run: |
+          curl -sS --retry 2 -m 90 -A "$UA" -H "Accept: text/html" -o /tmp/flood.html \
+               -w "Flood page: HTTP %{http_code}, %{size_download} bytes\n" https://weather.bangkok.go.th/Flood || true
+          curl -sS --retry 2 -m 90 -A "$UA" -H "Accept: application/json" -H "X-Requested-With: XMLHttpRequest" \
+               -H "Referer: https://weather.bangkok.go.th/water" -d payload=x -o /tmp/canals.json \
+               -w "Canals: HTTP %{http_code}, %{size_download} bytes\n" https://weather.bangkok.go.th/water/PageMap/GoogleMap || true
+      - run: python3 bma_fetch.py /tmp/flood.html /tmp/canals.json
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bma.json
+          git diff --cached --quiet || { git commit -qm "BMA data $(TZ=Asia/Bangkok date '+%H:%M')" && git push -q; }
