@@ -177,6 +177,13 @@
   .legend span { display:flex; align-items:center; gap:8px }
   .dot.sq { border-radius:3px }
   .dot.dia { border-radius:1px; transform:rotate(45deg) scale(.85) }
+  /* sensor dot as HTML (so it can carry a trend badge); same look as before */
+  .sw { position:relative; display:block; width:100%; height:100%; cursor:pointer }
+  .sens { display:block; width:100%; height:100%; border-radius:50%; border:2px solid var(--panel); box-shadow:0 1px 3px #0005 }
+  .sens.tun { border:3px solid var(--ink) }
+  .tr { position:absolute; right:-9px; top:-10px; width:16px; height:16px; border-radius:50%; background:var(--panel);
+        box-shadow:0 0 0 1.5px currentColor, 0 1px 3px #0005; font:700 10px/16px var(--sans); text-align:center; pointer-events:none }
+  .tr.up { color:var(--wl-over) } .tr.down { color:var(--live) }
   /* inner <i>: Leaflet owns the icon element's own transform for positioning */
   .canal { display:block; width:100%; height:100%; transform:rotate(45deg); border-radius:2px;
            border:1.5px solid var(--panel); box-shadow:0 1px 3px #0005 }
@@ -353,6 +360,7 @@
         <span><i class="dot sq" style="background:var(--still)"></i><span data-i18n="kStill">Still image or external viewer</span></span>
         <span><i class="dot" style="background:var(--wl-high)"></i><span data-i18n="kHigh">River high</span></span>
         <span><i class="dot" style="background:var(--wl-over)"></i><span data-i18n="kOver">River over the bank</span></span>
+        <span><i class="dot" style="background:var(--panel);box-shadow:0 0 0 1px var(--line);color:var(--wl-over);font:700 8px/10px var(--sans);text-align:center">▲</i><span data-i18n="kTrend">▲ rising / ▼ falling over the window picked in Highlights</span></span>
         <span><i class="dot dia" style="background:var(--wl-over)"></i><span data-i18n="kCanalCrit">Canal critical (BMA)</span></span>
         <span><i class="dot dia" style="background:var(--alert)"></i><span data-i18n="kCanalAlert">Canal alert (BMA)</span></span>
         <span><i class="dot" style="background:var(--report);border-radius:50% 50% 50% 2px;transform:rotate(-45deg)"></i><span data-i18n="kReport">Resident flood report</span></span>
@@ -482,6 +490,8 @@ const I18N = {
     report: "Report photo", reported: "Reported. Photos with 3 reports are hidden.", openFull: "Open full size ↗",
     noPhotoHere: "Photos can only be posted in Thailand.",
     floodHub: "Google Flood Hub forecast ↗",
+    trUp: (d, h) => `rising ${d} over ${h} h`, trDown: (d, h) => `falling ${d} over ${h} h`, trFlat: h => `steady over ${h} h`,
+    kTrend: "▲ rising / ▼ falling over the window picked in Highlights",
     h24: "24 h", h48: "48 h", bank: "bank", critLine: "critical", trendLoading: "Loading trend…",
     noTrend: "No readings in this period.", noTrendBma: "No history yet. BMA readings are collected every 30 minutes and build up from 26 Sep.",
     trendFail: "Couldn't load the trend.",
@@ -578,6 +588,8 @@ const I18N = {
     report: "รายงานภาพนี้", reported: "รายงานแล้ว ภาพที่ถูกรายงาน 3 ครั้งจะถูกซ่อน", openFull: "เปิดภาพขนาดเต็ม ↗",
     noPhotoHere: "ส่งภาพได้เฉพาะในประเทศไทย",
     floodHub: "พยากรณ์จาก Google Flood Hub ↗",
+    trUp: (d, h) => `เพิ่มขึ้น ${d} ใน ${h} ชม.`, trDown: (d, h) => `ลดลง ${d} ใน ${h} ชม.`, trFlat: h => `ทรงตัวใน ${h} ชม.`,
+    kTrend: "▲ เพิ่มขึ้น / ▼ ลดลง ตามช่วงเวลาที่เลือกในสรุป",
     h24: "24 ชม.", h48: "48 ชม.", bank: "ตลิ่ง", critLine: "วิกฤต", trendLoading: "กำลังโหลดกราฟ…",
     noTrend: "ไม่มีข้อมูลในช่วงนี้", noTrendBma: "ยังไม่มีประวัติ ระบบเก็บค่าจาก กทม. ทุก 30 นาที เริ่มตั้งแต่ 26 ก.ย.",
     trendFail: "โหลดกราฟไม่สำเร็จ",
@@ -1545,6 +1557,23 @@ map.on("popupopen", e => e.popup.getElement()?.querySelectorAll(".trend").forEac
 
 let floodData = null, flood = null;   // flood: null (off) | "error" | {counts, times}
 const bkkTime = str => Date.parse(String(str).replace(" ", "T").slice(0, 16) + "+07:00");
+// Change per sensor over the Highlights window, for the ▲/▼ badges on the map.
+let sensorTrend = new Map();
+async function loadTrends() {
+  if (!floodData || !photosOn) return;
+  const fresh = ts => Date.now() - bkkTime(ts) <= 3 * 3600e3;
+  const codes = [
+    ...floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4).map(r => `tw:${r.station.id}`),
+    ...floodData.canals.filter(c => c.lvl >= 3 && fresh(c.ts)).map(c => c.code),
+    ...floodData.roads.filter(r => r.cm > 0 && Date.now() - r.t <= 3 * 3600e3).map(r => r.code),
+  ].filter(Boolean);
+  const r = await sb("/rest/v1/rpc/reading_deltas", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codes, hours: hlHours }) }).catch(() => null);
+  const m = new Map();
+  if (r?.ok) for (const x of await r.json()) if (x.earlier != null) m.set(x.code, x.latest - x.earlier);
+  sensorTrend = m;
+  renderFlood();
+}
 async function loadFlood() {
   const [wl, road, bma] = await Promise.all([
     fetch(TW + "waterlevel_load", { cache: "no-store" }).then(r => r.json()),
@@ -1567,6 +1596,7 @@ async function loadFlood() {
   }
   floodData = { wl, roads: [...roads.values()], canals: bma?.canals || [], tunnels: bma?.tunnels || [] };
   renderFlood();
+  loadTrends();
 }
 function renderFlood() {
   if (!floodData) return;
@@ -1575,14 +1605,28 @@ function renderFlood() {
   let high = 0, over = 0, wet = 0, ccrit = 0, calert = 0, tun = 0;
   const HIGH = css("--wl-high"), OVER = css("--wl-over"), ROAD = css("--road"), ALERT = css("--alert"), EDGE = css("--panel");
   const dot = c => `<i class="dot" style="display:inline-block;vertical-align:-1px;background:${c}"></i> `;
+  // ▲/▼ badge from the Highlights window; steady or unknown gets none (less clutter).
+  // eps = change that counts; unit = how to print it; glitch = ignore bigger jumps.
+  const trendOf = (delta, eps, unit, glitch) => {
+    if (delta == null || Math.abs(delta) > glitch) return { badge: "", tip: "" };
+    const txt = unit === "cm" ? `${Math.abs(delta).toFixed(1)} cm` : `${Math.round(Math.abs(delta) * 100)} cm`;
+    if (delta > eps) return { badge: '<b class="tr up">▲</b>', tip: " · " + t("trUp", txt, hlHours) };
+    if (delta < -eps) return { badge: '<b class="tr down">▼</b>', tip: " · " + t("trDown", txt, hlHours) };
+    return { badge: "", tip: " · " + t("trFlat", hlHours) };
+  };
+  const dotIcon = (d, fill, badge, cls = "") => L.divIcon({ className: "", iconSize: [d, d],
+    html: `<span class="sw"><i class="sens ${cls}" style="background:${fill}"></i>${badge}</span>` });
   for (const r of wl.waterlevel_data.data) {
     const st = r.station, lvl = r.situation_level;
     if (!(lvl >= 4) || !st.tele_station_lat) continue;
     lvl === 5 ? over++ : high++;
     const name = bi(st.tele_station_name);
-    L.circleMarker([st.tele_station_lat, st.tele_station_long], { pane: "sensors",
-      radius: lvl === 5 ? 8 : 6, weight: 2, color: EDGE, fillColor: lvl === 5 ? OVER : HIGH, fillOpacity: 1,
-    }).bindTooltip(`${name}: ${lvl === 5 ? t("tipOver") : t("tipHigh")}`)
+    let dv = sensorTrend.get(`tw:${st.id}`);
+    if (dv == null && hlHours === 1 && r.waterlevel_msl != null && r.waterlevel_msl_previous != null) dv = r.waterlevel_msl - r.waterlevel_msl_previous;
+    const tr = trendOf(dv, 0.02, "m", 1);
+    L.marker([st.tele_station_lat, st.tele_station_long], { pane: "sensors",
+      icon: dotIcon(lvl === 5 ? 16 : 12, lvl === 5 ? OVER : HIGH, tr.badge) })
+      .bindTooltip(`${name}: ${lvl === 5 ? t("tipOver") : t("tipHigh")}${tr.tip}`)
       .bindPopup(() => (
         `<b>${esc(name)}</b><br>${esc(bi(r.geocode?.province_name))}<br>`
         + `${lvl === 5 ? dot(OVER) + t("over") : dot(HIGH) + t("high")}<br>`
@@ -1601,14 +1645,15 @@ function renderFlood() {
   const roadAt = latest(roads, r => r.ts), canalAt = latest(canals, r => r.ts);
   const roadStale = !roadAt || !fresh(bkkTime(roadAt));
 
-  const canalIcon = { 4: L.divIcon({ className: "", html: '<i class="canal crit"></i>', iconSize: [11, 11] }),
-                      3: L.divIcon({ className: "", html: '<i class="canal alert"></i>', iconSize: [9, 9] }) };
+  const canalIcon = (lvl, badge) => L.divIcon({ className: "", iconSize: lvl === 4 ? [11, 11] : [9, 9],
+    html: `<span class="sw"><i class="canal ${lvl === 4 ? "crit" : "alert"}"></i>${badge}</span>` });
   for (const c of canals) {
     if (!(c.lvl >= 3) || !fresh(bkkTime(c.ts))) continue;
     c.lvl === 4 ? ccrit++ : calert++;
     const word = c.lvl === 4 ? t("critical") : t("alert");
-    L.marker([c.y, c.x], { icon: canalIcon[c.lvl], pane: "sensors" })
-      .bindTooltip(`${bi(c)}: ${word}`)
+    const tr = trendOf(sensorTrend.get(c.code), 0.02, "m", 1);
+    L.marker([c.y, c.x], { icon: canalIcon(c.lvl, tr.badge), pane: "sensors" })
+      .bindTooltip(`${bi(c)}: ${word}${tr.tip}`)
       .bindPopup(() => `<b>${esc(bi(c))}</b><br>${dot(c.lvl === 4 ? OVER : ALERT)}${esc(word)}<br>`
         + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`
         + trendBox({ type: "bma", codes: [c.code], unit: "m", crit: c.crit })
@@ -1618,9 +1663,9 @@ function renderFlood() {
   for (const r of roads) {
     if (!(r.cm > 0) || !fresh(r.t)) continue;
     wet++;
-    L.circleMarker([r.y, r.x], { pane: "sensors",
-      radius: 5 + Math.min(r.cm, 40) / 5, weight: 2, color: EDGE, fillColor: ROAD, fillOpacity: 1,
-    }).bindTooltip(`${bi(r)}: ${t("tipRoad", r.cm)}`)
+    const tr = trendOf(sensorTrend.get(r.code), 1, "cm", 100);
+    L.marker([r.y, r.x], { pane: "sensors", icon: dotIcon(Math.round(2 * (5 + Math.min(r.cm, 40) / 5)), ROAD, tr.badge) })
+      .bindTooltip(`${bi(r)}: ${t("tipRoad", r.cm)}${tr.tip}`)
       .bindPopup(() => `<b>${esc(bi(r))}</b><br>${dot(ROAD)}${esc(t("road", r.cm))}<br>`
         + `<span class="reading">${esc(when(r.ts))} · ${t("roadSensor")}</span>`
         + trendBox({ type: "road", codes: [r.code], tw: r.tw, unit: "cm" }))
@@ -1631,7 +1676,7 @@ function renderFlood() {
     if (!wetSides.length) continue;
     tun++;
     const cm = Math.max(...wetSides.map(sd => sd.cm));
-    L.circleMarker([tn.y, tn.x], { pane: "sensors", radius: 7 + Math.min(cm, 40) / 5, weight: 3, color: css("--ink"), fillColor: ROAD, fillOpacity: 1 })
+    L.marker([tn.y, tn.x], { pane: "sensors", icon: dotIcon(Math.round(2 * (7 + Math.min(cm, 40) / 5)), ROAD, "", "tun") })
       .bindTooltip(`${bi(tn)}: ${t("tipRoad", cm)}`)
       .bindPopup(() => `<b>${esc(bi(tn))}</b><br>${t("tunnel")}<br><span class="reading">`
         + tn.sides.map(sd => `${esc(sd.dir)}: ${esc(sd.cm)} ${t("cm")} · ${esc(when(sd.ts))}`).join("<br>") + "</span>"
@@ -1808,7 +1853,7 @@ function syncHlHours() { document.querySelectorAll("#hlhours button").forEach(b 
 document.querySelectorAll("#hlhours button").forEach(b => b.onclick = () => {
   hlHours = +b.dataset.h;
   try { localStorage.setItem(HLH_KEY, hlHours); } catch {}
-  syncHlHours(); updateHighlights();
+  syncHlHours(); updateHighlights(); loadTrends();
 });
 syncHlHours();
 // open by default; closing it is remembered
