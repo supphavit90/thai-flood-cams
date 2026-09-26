@@ -147,6 +147,9 @@
   #hlbtn[aria-expanded="true"] .chev { transform:rotate(180deg) }
   #highlights { margin-top:4px; border-top:1px solid var(--line); padding:8px 4px 2px; display:grid; gap:7px;
                 max-height:min(42vh, 360px); overflow:auto }
+  .hlwin { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim) }
+  .hlwin .hours { margin:0 }
+  #hlbody { display:grid; gap:7px }
   .hl { display:grid; grid-template-columns:88px 1fr; gap:2px 10px; font-size:12px; line-height:1.4 }
   .hl-k { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); padding-top:2px }
   .hl-v { color:var(--ink) }
@@ -305,7 +308,12 @@
   </div>
   <div id="count" class="mono" data-i18n="loading">Loading cameras…</div>
   <button id="hlbtn" aria-expanded="false" aria-controls="highlights"><span data-i18n="hlBtn">Highlights for this view</span> <span class="chev">▾</span></button>
-  <div id="highlights" hidden></div>
+  <div id="highlights" hidden>
+    <div class="hlwin"><span data-i18n="hlOver">Change over</span>
+      <div class="hours" id="hlhours" role="group" data-i18n-aria="hlOver"><button data-h="1">1 h</button><button data-h="2">2 h</button><button data-h="3">3 h</button><button data-h="6">6 h</button><button data-h="12">12 h</button></div>
+    </div>
+    <div id="hlbody"></div>
+  </div>
   <div id="filters" hidden>
     <div class="group">
       <h3 data-i18n="hSensors">Water sensors</h3>
@@ -417,12 +425,14 @@ const I18N = {
     hlRiverV: (o, h) => [o && `${o} over the bank`, h && `${h} high`].filter(Boolean).join(" · "),
     hlCanalV: (c, a) => [c && `${c} critical`, a && `${a} alert`].filter(Boolean).join(" · "),
     hlRoadV: (n, cm, at) => `${n} flooded · deepest ${cm} cm at ${at}`,
-    hlFastest: (at, d) => `Fastest rise: ${at} (${d})`,
+    hlFastest: (at, d, h) => `Biggest rise over ${h} h: ${at} (${d})`, hlOver: "Change over",
+    hlRainWin: (h, mm, at) => `Heaviest in the last ${h} h: ${mm} mm at ${at} (BMA gauges)`,
+    hlMissing: (n, h) => `${n} flagged station${n === 1 ? " has" : "s have"} no reading from ${h} h ago yet (history started 26 Sep).`,
     hlRainV: (mm, at) => `Heaviest ${mm} mm in 24 h at ${at}`, hlRainNow: n => `Still raining (5 mm+ in the last hour) at ${n} gauge${n === 1 ? "" : "s"}`,
-    hlRepV: (a, b) => `${a} reports in the last hour, ${a > b ? "up from" : a < b ? "down from" : "same as"} ${b} the hour before`,
+    hlRepV: (a, b, h) => `${a} reports in the last ${h} h, ${a > b ? "up from" : a < b ? "down from" : "same as"} ${b} in the ${h} h before`,
     hlHwyV: (n, c) => `${n} flooded points · ${c} impassable`, hlDamV: (n, at, p) => `${n} at 80%+ · fullest ${at} ${p}%`,
-    hlCamsV: (n, l) => `${n} in view · ${l} live video`, hlEventsV: (n, a) => `${n} in the last 6 h · ${a} still active`,
-    hlTrendNote: "Trend vs about an hour earlier (rivers: vs previous reading).",
+    hlCamsV: (n, l) => `${n} in view · ${l} live video`, hlEventsV: (n, a, h) => `${n} in the last ${h} h · ${a} still active`,
+    hlTrendNote: h => `Rising / falling = change over the last ${h} h.`,
     lHwy: "Highway flooding", lHwySrc: "Dept. of Highways · passable or not · every 30 min",
     kHwyClosed: "Highway impassable (Highways Dept)", kHwyOpen: "Highway flooded, passable",
     hwyRoad: (r, sec, km) => `Highway ${r}` + (sec ? ` · ${sec}` : "") + (km ? ` · km ${km}` : ""),
@@ -512,12 +522,14 @@ const I18N = {
     hlRiverV: (o, h) => [o && `ล้นตลิ่ง ${o}`, h && `น้ำมาก ${h}`].filter(Boolean).join(" · "),
     hlCanalV: (c, a) => [c && `วิกฤต ${c}`, a && `เฝ้าระวัง ${a}`].filter(Boolean).join(" · "),
     hlRoadV: (n, cm, at) => `น้ำท่วม ${n} จุด · ลึกสุด ${cm} ซม. ที่ ${at}`,
-    hlFastest: (at, d) => `เพิ่มเร็วที่สุด: ${at} (${d})`,
+    hlFastest: (at, d, h) => `เพิ่มมากที่สุดใน ${h} ชม.: ${at} (${d})`, hlOver: "เปลี่ยนแปลงใน",
+    hlRainWin: (h, mm, at) => `หนักสุดใน ${h} ชม. ล่าสุด: ${mm} มม. ที่ ${at} (สถานี กทม.)`,
+    hlMissing: (n, h) => `${n} สถานียังไม่มีค่าเมื่อ ${h} ชม. ก่อน (เริ่มเก็บประวัติ 26 ก.ย.)`,
     hlRainV: (mm, at) => `หนักสุด ${mm} มม. ใน 24 ชม. ที่ ${at}`, hlRainNow: n => `ยังมีฝนตก (5 มม.+ ในชั่วโมงล่าสุด) ${n} สถานี`,
-    hlRepV: (a, b) => `แจ้ง ${a} เรื่องในชั่วโมงล่าสุด ${a > b ? "เพิ่มจาก" : a < b ? "ลดจาก" : "เท่ากับ"} ${b} เรื่องในชั่วโมงก่อน`,
+    hlRepV: (a, b, h) => `แจ้ง ${a} เรื่องใน ${h} ชม. ล่าสุด ${a > b ? "เพิ่มจาก" : a < b ? "ลดจาก" : "เท่ากับ"} ${b} เรื่องใน ${h} ชม. ก่อนหน้า`,
     hlHwyV: (n, c) => `น้ำท่วม ${n} จุด · ผ่านไม่ได้ ${c}`, hlDamV: (n, at, p) => `น้ำเกิน 80% ${n} แห่ง · มากสุด ${at} ${p}%`,
-    hlCamsV: (n, l) => `${n} ตัวในพื้นที่ · วิดีโอสด ${l}`, hlEventsV: (n, a) => `${n} เรื่องใน 6 ชม. · ยังไม่หมดเวลา ${a}`,
-    hlTrendNote: "แนวโน้มเทียบกับประมาณ 1 ชม. ก่อน (แม่น้ำ: เทียบกับค่าก่อนหน้า)",
+    hlCamsV: (n, l) => `${n} ตัวในพื้นที่ · วิดีโอสด ${l}`, hlEventsV: (n, a, h) => `${n} เรื่องใน ${h} ชม. · ยังไม่หมดเวลา ${a}`,
+    hlTrendNote: h => `เพิ่ม / ลด = การเปลี่ยนแปลงใน ${h} ชม. ล่าสุด`,
     lHwy: "น้ำท่วมทางหลวง", lHwySrc: "กรมทางหลวง · ผ่านได้หรือไม่ · ทุก 30 นาที",
     kHwyClosed: "ทางหลวงผ่านไม่ได้ (กรมทางหลวง)", kHwyOpen: "ทางหลวงน้ำท่วม ผ่านได้",
     hwyRoad: (r, sec, km) => `ทางหลวงหมายเลข ${r}` + (sec ? ` · ${sec}` : "") + (km ? ` · กม. ${km}` : ""),
@@ -894,7 +906,7 @@ function draw() {
     + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood, floodOn()) : "")
     + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), repHours) : "")
     + (hwy.length && $("#l-hwy").checked ? t("hwyNote", hwy.length, hwy.filter(h => h.closed).length) : "")
-    + (events.length && $("#l-events").checked ? t("evNote", events.length) : "")
+    + (events.length && $("#l-events").checked ? t("evNote", events.filter(e => Date.now() - Date.parse(e.starts) <= 6 * 3600e3).length) : "")
     + (dams.length && $("#l-dam").checked ? t("damNote", dams.filter(d => d.pct >= 80).length) : "")
     + (rain.length && $("#l-rain").checked ? t("rainNote", rain.length, rain.filter(g => g.mm24 >= 90).length) : "");
   lamp();
@@ -1017,7 +1029,7 @@ const eventLayer = L.markerClusterGroup({ maxClusterRadius: 36, disableClusterin
   iconCreateFunction: cl => L.divIcon({ html: cl.getChildCount(), className: "lev-cluster", iconSize: [26, 26] }) });
 async function loadEvents() {
   if (!photosOn) return;
-  const since = new Date(Date.now() - 6 * 3600e3).toISOString();
+  const since = new Date(Date.now() - 12 * 3600e3).toISOString();   // map shows 6 h; highlights can look back 12
   const r = await sb(`/rest/v1/road_events?select=*&starts=gte.${since}&order=starts.desc`, { cache: "no-store" });
   if (!r.ok) return;
   events = await r.json();
@@ -1025,7 +1037,7 @@ async function loadEvents() {
 }
 function renderEvents() {
   eventLayer.clearLayers();
-  eventLayer.addLayers(events.map(e => {
+  eventLayer.addLayers(events.filter(e => Date.now() - Date.parse(e.starts) <= 6 * 3600e3).map(e => {
     const old = e.stops && Date.parse(e.stops) < Date.now();
     const title = lang === "en" && e.title_en ? e.title_en : e.title, body = lang === "en" && e.body_en ? e.body_en : e.body;
     return L.marker([e.lat, e.lon], { icon: L.divIcon({ className: "", iconSize: [15, 13], html: `<i class="lev${old ? " old" : ""}"></i>` }) })
@@ -1686,114 +1698,129 @@ fetch("cameras.json").then(r => r.json()).then(data => {
 }).catch(() => $("#count").textContent = t("noList"));
 
 /* ---------- highlights: an executive summary of what's in the current view ----------
-   Only layers that are on and have something inside the map bounds. Trends:
-   rivers = latest vs previous thaiwater reading; BMA canals / roads = latest vs
-   ~1 h earlier from public.bma_readings (the Mac job's history); residents =
-   last hour vs the hour before. */
-let hlReadings = null, hlReadingsAt = 0;
-async function hlTrendData() {
-  if (!photosOn) return new Map();
-  if (hlReadings && Date.now() - hlReadingsAt < 10 * 60e3) return hlReadings;
-  const since = new Date(Date.now() - 150 * 60e3).toISOString();
-  const r = await sb(`/rest/v1/bma_readings?select=code,ts,value&kind=in.(canal,road)&ts=gte.${since}&order=ts`, { cache: "no-store" }).catch(() => null);
-  const by = new Map();
-  if (r?.ok) for (const x of await r.json()) (by.get(x.code) || by.set(x.code, []).get(x.code)).push([Date.parse(x.ts), x.value]);
-  hlReadings = by; hlReadingsAt = Date.now();
-  return by;
-}
-// change over ~1 h for one BMA station: latest reading vs the one closest to 60 min before it (45 min+)
-function hourDelta(series) {
-  if (!series || series.length < 2) return null;
-  const [tL, vL] = series.at(-1);
-  let best = null;
-  for (const [ts, v] of series) if (tL - ts >= 45 * 60e3 && (!best || Math.abs(tL - ts - 3600e3) < Math.abs(tL - best[0] - 3600e3))) best = [ts, v];
-  return best ? vL - best[1] : null;
+   Only layers that are on and have something inside the map bounds. Trends are
+   the change over the chosen window (1-12 h): rivers, BMA canals and roads via
+   public.reading_deltas (latest reading vs the one closest to N h earlier, from
+   the shared readings history); residents = last N h vs the N h before. */
+const HLH_KEY = "livecam.hlHours";
+let hlHours = (() => { try { return [1, 2, 3, 6, 12].includes(+localStorage.getItem(HLH_KEY)) ? +localStorage.getItem(HLH_KEY) : 1; } catch { return 1; } })();
+const hlCache = new Map();
+async function hlDeltas(codes) {
+  if (!photosOn || !codes.length) return new Map();
+  const key = hlHours + "|" + codes.slice().sort().join(",");
+  const hit = hlCache.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60e3) return hit.map;
+  const r = await sb("/rest/v1/rpc/reading_deltas", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ codes, hours: hlHours }) }).catch(() => null);
+  const map = new Map();
+  if (r?.ok) for (const x of await r.json()) if (x.earlier != null) map.set(x.code, x.latest - x.earlier);
+  hlCache.set(key, { at: Date.now(), map });
+  return map;
 }
 function trendChips(ds, eps) {
   const up = ds.filter(d => d > eps).length, down = ds.filter(d => d < -eps).length, flat = ds.length - up - down;
   if (!ds.length) return "";
   return `<span class="chips">${up ? `<b class="chip up">${t("up", up)}</b>` : ""}${down ? `<b class="chip down">${t("down", down)}</b>` : ""}${flat ? `<b class="chip">${t("flat", flat)}</b>` : ""}</span>`;
 }
-let hlTimer;
+const cmTxt = m => `+${Math.round(m * 100)} cm`;
+let hlTimer, hlSeq = 0;
 function scheduleHighlights() { clearTimeout(hlTimer); hlTimer = setTimeout(updateHighlights, 250); }
 async function updateHighlights() {
-  const box = $("#highlights");
-  if (box.hidden) return;
+  const body = $("#hlbody");
+  if ($("#highlights").hidden) return;
+  const seq = ++hlSeq;
   const b = map.getBounds(), inView = (y, x) => y != null && b.contains([y, x]);
-  const on = id => $(id)?.checked, rows = [];
+  const on = id => $(id)?.checked, rows = [], H = hlHours;
   const row = (k, v, extra = "") => rows.push(`<div class="hl"><span class="hl-k">${k}</span><span class="hl-v">${v}${extra}</span></div>`);
-  const trends = await hlTrendData();
-  if (box.hidden) return;
+  const fresh = ts => Date.now() - bkkTime(ts) <= 3 * 3600e3;
 
-  if (floodData && on("#l-river")) {
-    const st = floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4 && inView(r.station.tele_station_lat, r.station.tele_station_long));
-    if (st.length) {
-      // a jump of more than 1 m between readings is a sensor glitch, not a trend
-      const ds = st.filter(r => r.waterlevel_msl != null && r.waterlevel_msl_previous != null)
-        .map(r => [r, r.waterlevel_msl - r.waterlevel_msl_previous]).filter(x => Math.abs(x[1]) <= 1);
-      const fast = ds.reduce((m, x) => x[1] > (m?.[1] ?? 0.02) ? x : m, null);
-      row(t("hlRivers"), t("hlRiverV", st.filter(r => r.situation_level === 5).length, st.filter(r => r.situation_level === 4).length),
-        trendChips(ds.map(x => x[1]), 0.02) + (fast ? `<small>${esc(t("hlFastest", bi(fast[0].station.tele_station_name), `+${Math.round(fast[1] * 100)} cm`))}</small>` : ""));
-    }
+  // what's flagged in view, then one round trip for all their trends
+  const rivers = floodData && on("#l-river") ? floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4 && inView(r.station.tele_station_lat, r.station.tele_station_long)) : [];
+  const canals = floodData && on("#l-canal") ? floodData.canals.filter(c => c.lvl >= 3 && fresh(c.ts) && inView(c.y, c.x)) : [];
+  const roads = floodData && on("#l-road") ? floodData.roads.filter(r => r.cm > 0 && Date.now() - r.t <= 3 * 3600e3 && inView(r.y, r.x)) : [];
+  const d = await hlDeltas([...rivers.map(r => `tw:${r.station.id}`), ...canals.map(c => c.code), ...roads.map(r => r.code)].filter(Boolean));
+  if (seq !== hlSeq || $("#highlights").hidden) return;   // superseded by a newer view
+  let missing = 0;
+  // a jump of more than 1 m (100 cm for roads) is a sensor glitch, not a trend
+  const pick = (list, code, fallback, limit = 1) => list.map(x => {
+    let v = d.get(code(x));
+    if (v == null && fallback) v = fallback(x);
+    if (v == null) missing++;
+    return [x, v];
+  }).filter(x => x[1] != null && Math.abs(x[1]) <= limit);
+
+  if (rivers.length) {
+    const ds = pick(rivers, r => `tw:${r.station.id}`,
+      r => H === 1 && r.waterlevel_msl != null && r.waterlevel_msl_previous != null ? r.waterlevel_msl - r.waterlevel_msl_previous : null);
+    const fast = ds.reduce((m, x) => x[1] > (m?.[1] ?? 0.02) ? x : m, null);
+    row(t("hlRivers"), t("hlRiverV", rivers.filter(r => r.situation_level === 5).length, rivers.filter(r => r.situation_level === 4).length),
+      trendChips(ds.map(x => x[1]), 0.02) + (fast ? `<small>${esc(t("hlFastest", bi(fast[0].station.tele_station_name), cmTxt(fast[1]), H))}</small>` : ""));
   }
-  if (floodData && on("#l-canal")) {
-    const fresh = c => Date.now() - bkkTime(c.ts) <= 3 * 3600e3;
-    const cs = floodData.canals.filter(c => c.lvl >= 3 && fresh(c) && inView(c.y, c.x));
-    if (cs.length) {
-      const ds = cs.map(c => [c, hourDelta(trends.get(c.code))]).filter(x => x[1] != null && Math.abs(x[1]) <= 1);
-      const fast = ds.reduce((m, x) => x[1] > (m?.[1] ?? 0.02) ? x : m, null);
-      row(t("hlCanals"), t("hlCanalV", cs.filter(c => c.lvl === 4).length, cs.filter(c => c.lvl === 3).length),
-        trendChips(ds.map(x => x[1]), 0.02) + (fast ? `<small>${esc(t("hlFastest", bi(fast[0]), `+${Math.round(fast[1] * 100)} cm/h`))}</small>` : ""));
-    }
+  if (canals.length) {
+    const ds = pick(canals, c => c.code);
+    const fast = ds.reduce((m, x) => x[1] > (m?.[1] ?? 0.02) ? x : m, null);
+    row(t("hlCanals"), t("hlCanalV", canals.filter(c => c.lvl === 4).length, canals.filter(c => c.lvl === 3).length),
+      trendChips(ds.map(x => x[1]), 0.02) + (fast ? `<small>${esc(t("hlFastest", bi(fast[0]), cmTxt(fast[1]), H))}</small>` : ""));
   }
-  if (floodData && on("#l-road")) {
-    const rs = floodData.roads.filter(r => r.cm > 0 && Date.now() - r.t <= 3 * 3600e3 && inView(r.y, r.x));
-    if (rs.length) {
-      const deep = rs.reduce((m, r) => r.cm > m.cm ? r : m);
-      const ds = rs.map(r => hourDelta(trends.get(r.code))).filter(d => d != null);
-      row(t("hlRoads"), esc(t("hlRoadV", rs.length, deep.cm, bi(deep))), trendChips(ds, 1));
-    }
+  if (roads.length) {
+    const deep = roads.reduce((m, r) => r.cm > m.cm ? r : m);
+    const ds = pick(roads, r => r.code, null, 100).map(x => x[1] / 100);   // cm -> m for the shared 1 cm threshold
+    row(t("hlRoads"), esc(t("hlRoadV", roads.length, deep.cm, bi(deep))), trendChips(ds, 0.01));
   }
   if (on("#l-rain") && rain.length) {
     const gs = rain.filter(g => inView(g.lat, g.lon));
     if (gs.length) {
       const top = gs.reduce((m, g) => g.mm24 > m.mm24 ? g : m);
+      // BMA gauges carry 1/3/6/12 h totals; heaviest over the chosen window where one exists
+      const k = { 1: 0, 3: 1, 6: 2, 12: 3 }[H], win = k == null ? null : gs.filter(g => g.h).reduce((m, g) => (g.h[k] ?? 0) > (m?.h[k] ?? 0) ? g : m, null);
       const now = gs.filter(g => (g.mm1 || 0) >= 5).length;
-      row(t("hlRain"), esc(t("hlRainV", top.mm24, bi({ th: top.name_th, en: top.name_en }))), now ? `<small>${esc(t("hlRainNow", now))}</small>` : "");
+      row(t("hlRain"), esc(t("hlRainV", top.mm24, bi({ th: top.name_th, en: top.name_en }))),
+        (win && win.h[k] > 0 ? `<small>${esc(t("hlRainWin", H, win.h[k], bi({ th: win.name_th, en: win.name_en })))}</small>` : "")
+        + (now ? `<small>${esc(t("hlRainNow", now))}</small>` : ""));
     }
   }
   if (on("#reports") && reports.length) {
     const rs = reports.filter(r => inView(r.lat, r.lon)), age = r => Date.now() - Date.parse(r.ts);
-    const a = rs.filter(r => age(r) <= 3600e3).length, c = rs.filter(r => age(r) > 3600e3 && age(r) <= 7200e3).length;
-    if (a || c) row(t("hlReports"), esc(t("hlRepV", a, c)));
+    const a = rs.filter(r => age(r) <= H * 3600e3).length, c = rs.filter(r => age(r) > H * 3600e3 && age(r) <= 2 * H * 3600e3).length;
+    if (a || c) row(t("hlReports"), esc(t("hlRepV", a, c, H)));
   }
   if (on("#l-hwy") && hwy.length) {
     const hs = hwy.filter(h => inView(h.lat, h.lon));
     if (hs.length) row(t("hlHwy"), esc(t("hlHwyV", hs.length, hs.filter(h => h.closed).length)));
   }
   if (on("#l-events") && events.length) {
-    const es = events.filter(e => inView(e.lat, e.lon));
-    if (es.length) row(t("hlEvents"), esc(t("hlEventsV", es.length, es.filter(e => !e.stops || Date.parse(e.stops) > Date.now()).length)));
+    const es = events.filter(e => inView(e.lat, e.lon) && Date.now() - Date.parse(e.starts) <= H * 3600e3);
+    if (es.length) row(t("hlEvents"), esc(t("hlEventsV", es.length, es.filter(e => !e.stops || Date.parse(e.stops) > Date.now()).length, H)));
   }
   if (on("#l-dam") && dams.length) {
-    const ds = dams.filter(d => inView(d.lat, d.lon) && d.pct >= 80);
-    if (ds.length) { const f = ds.reduce((m, d) => d.pct > m.pct ? d : m); row(t("hlDams"), esc(t("hlDamV", ds.length, bi({ th: f.name_th, en: f.name_en }), Math.round(f.pct)))); }
+    const ds = dams.filter(x => inView(x.lat, x.lon) && x.pct >= 80);
+    if (ds.length) { const f = ds.reduce((m, x) => x.pct > m.pct ? x : m); row(t("hlDams"), esc(t("hlDamV", ds.length, bi({ th: f.name_th, en: f.name_en }), Math.round(f.pct)))); }
   }
   const cv = visible().filter(c => inView(c.y, c.x));
   if (cv.length) row(t("hlCams"), esc(t("hlCamsV", cv.length, cv.filter(isLive).length)));
 
-  box.innerHTML = rows.length > (cv.length ? 1 : 0)
-    ? rows.join("") + `<div class="hl-none" style="font-size:11px">${t("hlTrendNote")}</div>`
+  const note = t("hlTrendNote", H) + (missing ? " " + t("hlMissing", missing, H) : "");
+  body.innerHTML = rows.length > (cv.length ? 1 : 0)
+    ? rows.join("") + `<div class="hl-none" style="font-size:11px">${esc(note)}</div>`
     : `<div class="hl-none">${t("hlNone")}</div>` + (cv.length ? rows.join("") : "");
 }
+function syncHlHours() { document.querySelectorAll("#hlhours button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.h === hlHours)); }
+document.querySelectorAll("#hlhours button").forEach(b => b.onclick = () => {
+  hlHours = +b.dataset.h;
+  try { localStorage.setItem(HLH_KEY, hlHours); } catch {}
+  syncHlHours(); updateHighlights();
+});
+syncHlHours();
+// open by default; closing it is remembered
 const HL_KEY = "livecam.highlights";
+const setHl = open => { $("#highlights").hidden = !open; $("#hlbtn").setAttribute("aria-expanded", open); };
+try { setHl(localStorage.getItem(HL_KEY) !== "0"); } catch { setHl(true); }
 $("#hlbtn").onclick = () => {
   const open = $("#highlights").hidden;
-  $("#highlights").hidden = !open; $("#hlbtn").setAttribute("aria-expanded", open);
+  setHl(open);
   try { localStorage.setItem(HL_KEY, open ? "1" : "0"); } catch {}
   if (open) updateHighlights();
 };
-try { if (localStorage.getItem(HL_KEY) === "1") { $("#highlights").hidden = false; $("#hlbtn").setAttribute("aria-expanded", true); } } catch {}
 map.on("moveend", scheduleHighlights);
 
 /* ---------- refresh everything in place ----------
@@ -1803,7 +1830,7 @@ async function refreshAll(manual) {
   const b = $("#refreshbtn");
   if (b.classList.contains("busy")) return;
   b.classList.add("busy"); b.title = t("refreshing");
-  trendCache.clear(); hlReadings = null;
+  trendCache.clear(); hlCache.clear();
   await Promise.allSettled([
     FLOOD_KINDS.some(k => $(`#l-${k}`).checked) ? loadFlood().catch(() => { flood = "error"; draw(); }) : null,
     loadHwy(manual), photosOn && loadPhotos(), photosOn && loadReports(), photosOn && loadRain(), photosOn && loadDams(), photosOn && loadEvents(),
