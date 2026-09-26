@@ -16,7 +16,7 @@
   :root {
     --bg:#edebe6; --panel:#f8f7f4; --well:#e4e1db; --ink:#1d1d1b; --dim:#6e6b64;
     --line:#d3cfc7; --accent:#e2571c; --live:#3d8b5a; --still:#8d8981;
-    --wl-high:#2f5fd0; --wl-over:#d0342c; --road:#7a4fc9; --alert:#d98b17;
+    --wl-high:#2f5fd0; --wl-over:#d0342c; --road:#7a4fc9; --alert:#d98b17; --report:#0e8a8c;
     --tiles:none; --shadow:0 1px 2px #0000001a, 0 4px 14px #0000000f;
     --sans:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -26,14 +26,14 @@
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
     --bg:#1b1b19; --panel:#252523; --well:#2f2f2c; --ink:#ecebe6; --dim:#9d9a92;
     --line:#3b3a36; --accent:#f06a2a; --live:#5aaa76; --still:#7d7a73;
-    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a;
+    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a; --report:#2fb3b5;
     --tiles:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6);
     --shadow:0 1px 2px #0006, 0 4px 14px #0004; color-scheme:dark;
   } }
   :root[data-theme="dark"] {
     --bg:#1b1b19; --panel:#252523; --well:#2f2f2c; --ink:#ecebe6; --dim:#9d9a92;
     --line:#3b3a36; --accent:#f06a2a; --live:#5aaa76; --still:#7d7a73;
-    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a;
+    --wl-high:#5b86f0; --wl-over:#ef5b50; --road:#9c77e6; --alert:#eaa23a; --report:#2fb3b5;
     --tiles:invert(1) hue-rotate(180deg) brightness(.92) contrast(.88) saturate(.6);
     --shadow:0 1px 2px #0006, 0 4px 14px #0004; color-scheme:dark;
   }
@@ -65,6 +65,13 @@
   .photo-pin { width:100%; height:100%; border-radius:8px; border:2px solid var(--panel); overflow:hidden;
                box-shadow:0 0 0 1.5px var(--accent), 0 2px 6px #0006; background:var(--well) }
   .photo-pin img { width:100%; height:100%; object-fit:cover; display:block }
+  .rep { display:block; width:100%; height:100%; border-radius:50% 50% 50% 2px; transform:rotate(-45deg);
+         background:var(--report); border:1.5px solid var(--panel); box-shadow:0 1px 3px #0005 }
+  .rep-cluster { display:grid; place-items:center; border-radius:50%; background:var(--report); color:#fff;
+                 border:2px solid var(--panel); box-shadow:var(--shadow); font:500 11px/1 var(--mono) }
+  .rep-photo { display:block; width:100%; max-width:240px; border-radius:6px; margin:6px 0; background:var(--well) }
+  .rep-state { display:inline-block; font:500 10px/1 var(--mono); padding:3px 6px; border-radius:4px;
+               background:var(--well); color:var(--ink); letter-spacing:.04em }
   .photo-full { width:100%; max-width:100%; border-radius:8px; display:block; background:#111 }
   .compose { display:grid; gap:12px }
   .compose textarea { width:100%; min-height:64px; resize:vertical; padding:10px; border-radius:8px;
@@ -252,6 +259,7 @@
     <div class="group">
       <h3 data-i18n="hFlood">Flood</h3>
       <label class="switch"><input type="checkbox" id="flood" checked><span><span data-i18n="floodLayer">River levels &amp; flooded roads</span><small data-i18n="floodSrc">thaiwater.net · updates every 10 min</small></span></label>
+      <label class="switch"><input type="checkbox" id="reports" checked><span><span data-i18n="repLayer">Residents' flood reports</span><small data-i18n="repSrc">Traffy Fondue (BMA) · last 24 h · every 10 min</small></span></label>
       <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · last 48 h</small></span></label>
       <label class="switch"><input type="checkbox" id="radar"><span><span data-i18n="radar">Rain radar</span><small data-i18n="radarSrc">RainViewer · updates every 10 min</small></span></label>
     </div>
@@ -272,6 +280,7 @@
         <span><i class="dot" style="background:var(--wl-over)"></i><span data-i18n="kOver">River over the bank</span></span>
         <span><i class="dot dia" style="background:var(--wl-over)"></i><span data-i18n="kCanalCrit">Canal critical (BMA)</span></span>
         <span><i class="dot dia" style="background:var(--alert)"></i><span data-i18n="kCanalAlert">Canal alert (BMA)</span></span>
+        <span><i class="dot" style="background:var(--report);border-radius:50% 50% 50% 2px;transform:rotate(-45deg)"></i><span data-i18n="kReport">Resident flood report</span></span>
         <span><i class="dot sq" style="background:var(--well);box-shadow:0 0 0 1.5px var(--accent)"></i><span data-i18n="kPhoto">Community photo</span></span>
         <span><i class="dot" style="background:var(--road)"></i><span data-i18n="kRoad">Road flooded, sized by cm</span></span>
       </div>
@@ -337,6 +346,11 @@ const I18N = {
     myLocation: "My location", thisSpot: "This spot", pCanals: "Nearest canal stations (BMA)",
     critical: "critical", alert: "alert", offlineSt: "out of order", tunnel: "Underpass",
     canal: (m, w, c) => `level ${m ?? "–"} m (alert ${w ?? "–"}, critical ${c ?? "–"})`,
+    repLayer: "Residents' flood reports", repSrc: "Traffy Fondue (BMA) · last 24 h · every 10 min", kReport: "Resident flood report",
+    repTitle: "Resident's flood report", repVia: "Reported on Traffy Fondue, BMA's citizen-report app",
+    repNote: n => ` · ${n} resident flood reports (24 h)`, pReports: "Residents' flood reports within 1 km",
+    repState: { "รอรับเรื่อง": "Waiting for BMA", "รับเรื่อง": "Accepted", "กำลังดำเนินการ": "BMA working on it",
+                "ส่งต่อ(ใหม่)": "Forwarded", "เสร็จสิ้น": "Resolved" },
     photosLayer: "Community photos", photosSrc: "Posted by visitors · last 48 h", kPhoto: "Community photo",
     addPhoto: "Add a photo of flooding here", pPhotos: "Photos within 2 km", photoTitle: "Flood photo",
     composeTitle: "Post a flood photo", captionPh: "What's it like? e.g. knee-deep, road closed (optional)",
@@ -356,7 +370,7 @@ const I18N = {
     locFail: "Couldn't find your location. Try again outdoors or with Wi-Fi on.",
     close: "Close", wallHint: "Cameras in view. Tap one to open it.", backToMap: "Back to map",
     langBtn: "TH", langAria: "เปลี่ยนเป็นภาษาไทย",
-    count: (n, l, off) => `${n} cameras · ${l} live` + (off ? ` · ${off} unmapped (in Wall)` : ""),
+    count: (n, l) => `${n} cameras · ${l} live`,
     floodNote: f => ` · rivers ${when(f.riverAt)}: ${f.over} over bank, ${f.high} high`
       + (f.canalAt ? ` · canals ${when(f.canalAt)}: ${f.ccrit} critical, ${f.calert} alert` : "")
       + (f.roadStale ? ` · Bangkok road sensors last reported ${when(f.roadAt)}`
@@ -388,6 +402,10 @@ const I18N = {
     myLocation: "ตำแหน่งของฉัน", thisSpot: "จุดนี้", pCanals: "สถานีวัดระดับน้ำคลองใกล้เคียง (กทม.)",
     critical: "วิกฤต", alert: "เฝ้าระวัง", offlineSt: "ขัดข้อง", tunnel: "อุโมงค์ทางลอด",
     canal: (m, w, c) => `ระดับ ${m ?? "–"} ม. (เฝ้าระวัง ${w ?? "–"}, วิกฤต ${c ?? "–"})`,
+    repLayer: "แจ้งน้ำท่วมจากประชาชน", repSrc: "Traffy Fondue (กทม.) · 24 ชม. ล่าสุด · ทุก 10 นาที", kReport: "เรื่องแจ้งน้ำท่วม",
+    repTitle: "ประชาชนแจ้งน้ำท่วม", repVia: "แจ้งผ่าน Traffy Fondue แอปรับเรื่องของ กทม.",
+    repNote: n => ` · ประชาชนแจ้งน้ำท่วม ${n} เรื่อง (24 ชม.)`, pReports: "เรื่องแจ้งน้ำท่วมในรัศมี 1 กม.",
+    repState: {},
     photosLayer: "ภาพจากผู้ใช้", photosSrc: "ผู้ใช้ส่งมา · 48 ชม. ล่าสุด", kPhoto: "ภาพจากผู้ใช้",
     addPhoto: "ส่งภาพน้ำท่วมตรงนี้", pPhotos: "ภาพในรัศมี 2 กม.", photoTitle: "ภาพน้ำท่วม",
     composeTitle: "ส่งภาพน้ำท่วม", captionPh: "สถานการณ์เป็นอย่างไร เช่น น้ำท่วมถึงเข่า ถนนปิด (ไม่บังคับ)",
@@ -407,7 +425,7 @@ const I18N = {
     locFail: "หาตำแหน่งไม่ได้ ลองใหม่อีกครั้งในที่โล่งหรือเปิด Wi-Fi",
     close: "ปิด", wallHint: "กล้องในพื้นที่ที่แสดง แตะเพื่อเปิดดู", backToMap: "กลับไปที่แผนที่",
     langBtn: "EN", langAria: "Switch to English",
-    count: (n, l, off) => `กล้อง ${n} · สด ${l}` + (off ? ` · ไม่มีพิกัด ${off} (ดูใน “รวมกล้อง”)` : ""),
+    count: (n, l) => `กล้อง ${n} · สด ${l}`,
     floodNote: f => ` · แม่น้ำ ${when(f.riverAt)}: ล้นตลิ่ง ${f.over} · น้ำมาก ${f.high}`
       + (f.canalAt ? ` · คลอง ${when(f.canalAt)}: วิกฤต ${f.ccrit} · เฝ้าระวัง ${f.calert}` : "")
       + (f.roadStale ? ` · เซนเซอร์ถนน กทม. รายงานล่าสุด ${when(f.roadAt)}`
@@ -713,10 +731,10 @@ function draw() {
     markers.addLayer(m);
   }
   map.addLayer(markers);
-  const off = list.filter(c => c.y == null).length;
-  $("#count").textContent = t("count", list.length.toLocaleString(),
-    list.filter(c => c.h || c.yt).length.toLocaleString(), off)
-    + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood) : "");
+  const onMap = list.filter(c => c.y != null);   // streams with no location aren't shown anywhere
+  $("#count").textContent = t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
+    + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood) : "")
+    + (reports.length && $("#reports").checked ? t("repNote", reports.length.toLocaleString()) : "");
   lamp();
 }
 
@@ -791,6 +809,37 @@ function renderPhotos() {
         html: `<div class="photo-pin"><img src="${esc(photoUrl(ph, true))}" alt="" loading="lazy"></div>` }) })
       .bindTooltip(`${ph.caption ? ph.caption + " · " : ""}${ago(ph.created_at)}`, { direction: "top", offset: [0, -18] })
       .on("click", () => openPhoto(ph)).addTo(photoLayer);
+}
+
+/* ---------- residents' flood reports (Traffy Fondue, via public.traffy_reports) ----------
+   BMA's citizen-report app. The traffy-sync function copies flood-related ones
+   every 10 min (keyword match - new reports aren't categorised yet), with phone
+   numbers and emails stripped. Resolved reports are left off the map. */
+let reports = [];
+const reportLayer = L.markerClusterGroup({ maxClusterRadius: 40, disableClusteringAtZoom: 15, showCoverageOnHover: false,
+  iconCreateFunction: cl => L.divIcon({ html: cl.getChildCount(), className: "rep-cluster", iconSize: [30, 30] }) });
+const repIcon = L.divIcon({ className: "", html: '<i class="rep"></i>', iconSize: [13, 13], iconAnchor: [2, 13] });
+const repStateTxt = st => (lang === "en" && I18N.en.repState[st]) || st || "";
+async function loadReports() {
+  if (!photosOn) return;
+  const since = new Date(Date.now() - 24 * 3600e3).toISOString();
+  const r = await sb(`/rest/v1/traffy_reports?select=id,ts,lat,lon,body,address,state,photo&ts=gte.${since}`
+    + `&state=neq.${encodeURIComponent("เสร็จสิ้น")}&order=ts.desc&limit=2000`, { cache: "no-store" });
+  if (!r.ok) return;
+  reports = await r.json();
+  renderReports();
+  draw();
+}
+function renderReports() {
+  reportLayer.clearLayers();
+  reportLayer.addLayers(reports.map(rp => L.marker([rp.lat, rp.lon], { icon: repIcon })
+    .bindTooltip(`${ago(rp.ts)} · ${(rp.body || "").slice(0, 60)}`, { direction: "top", offset: [0, -10] })
+    .bindPopup(() => `<b>${t("repTitle")}</b><br>`
+      + (rp.photo ? `<img class="rep-photo" src="${esc(rp.photo)}" alt="" loading="lazy">` : "")
+      + (rp.body ? `<div style="max-width:260px">${esc(rp.body)}</div>` : "")
+      + `<div class="reading" style="margin-top:6px">${esc(ago(rp.ts))} · ${esc(rp.address)}</div>`
+      + `<div style="margin-top:6px"><span class="rep-state">${esc(repStateTxt(rp.state))}</span></div>`
+      + `<div class="reading" style="margin-top:6px">${t("repVia")}</div>`, { maxWidth: 280 })));
 }
 
 // shared set-up for panel views that aren't a camera
@@ -909,6 +958,9 @@ function placeSummary(p) {
       + (flood?.roadStale ? `<p class="none" style="margin-top:6px">${t("pStale")}</p>` : "")
       : `<p class="none">${t("pNone")}</p>`) + "</section>");
   }
+  const nr = near(reports, r => r.lat, r => r.lon, 1);
+  if (nr.length) out.push(`<section><h3>${t("pReports")} · ${nr.length}</h3><ul>` + nr.slice(0, 5).map(([d, r]) =>
+    row(css("--report"), r.body || r.address, `${kmTxt(d)} · ${ago(r.ts)} · ${repStateTxt(r.state)}`, "")).join("") + "</ul></section>");
   const np = near(photos, ph => ph.lat, ph => ph.lon, 2).slice(0, 12);
   if (np.length) out.push(`<section><h3>${t("pPhotos")}</h3><div class="thumbs">`
     + np.map(([d, ph]) => `<button data-photo="${esc(ph.id)}" title="${esc(`${kmTxt(d)} · ${ago(ph.created_at)}`)}"><img src="${esc(photoUrl(ph, true))}" alt="${esc(ph.caption || t("photoTitle"))}" loading="lazy"></button>`).join("")
@@ -974,10 +1026,12 @@ $("#p-open").onclick = () => (current.h && track("newtab"), window.open(
 const WALL_MAX = 24;               // ponytail: hard cap. 24 refreshing JPEGs is
 let wallStops = [];                // already ~5 req/s; raise it and the tab crawls.
 function openWall() {
-  const b = map.getBounds();
+  // Only what's in view, nearest the centre first. Streams with no location
+  // used to go first and pushed out the cameras you were actually looking at.
+  const b = map.getBounds(), c0 = map.getCenter();
   const list = visible()
-    .filter(c => c.y == null || b.contains([c.y, c.x]))
-    .sort((a, z) => (a.y == null ? -1 : 0) - (z.y == null ? -1 : 0))  // roaming first
+    .filter(c => c.y != null && b.contains([c.y, c.x]))
+    .sort((a, z) => distKm(c0.lat, c0.lng, a.y, a.x) - distKm(c0.lat, c0.lng, z.y, z.x))
     .slice(0, WALL_MAX);
   const grid = $("#grid"); grid.innerHTML = "";
   wallStops.forEach(f => f()); wallStops = [];
@@ -1284,7 +1338,9 @@ fetch("cameras.json").then(r => r.json()).then(data => {
     $("#addphoto").title = t("addPhoto"); $("#addphoto").setAttribute("aria-label", t("addPhoto"));
     if ($("#photos").checked) photoLayer.addTo(map);
     loadPhotos(); setInterval(loadPhotos, 5 * 60e3);
-  } else $("#photos").closest("label").hidden = true;
+    if ($("#reports").checked) reportLayer.addTo(map);
+    loadReports(); setInterval(loadReports, 10 * 60e3);
+  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; }
 }).catch(() => $("#count").textContent = t("noList"));
 
 function soloView(cam) {
@@ -1302,6 +1358,7 @@ function soloView(cam) {
 }
 
 $("#photofile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) startCompose(f).catch(() => toast(t("postFail"))); };
+$("#reports").onchange = e => { e.target.checked ? reportLayer.addTo(map) : map.removeLayer(reportLayer); draw(); };
 $("#photos").onchange = e => { e.target.checked ? photoLayer.addTo(map) : map.removeLayer(photoLayer); lamp(); };
 $("#close").addEventListener("click", endDraft);
 
@@ -1316,6 +1373,7 @@ function applyLang() {
   $("#locate").setAttribute("aria-label", t("locate")); $("#locate").title = t("locate");
   if ($("#addphoto")) { $("#addphoto").title = t("addPhoto"); $("#addphoto").setAttribute("aria-label", t("addPhoto")); }
   if (photos.length) renderPhotos();
+  if (reports.length) renderReports();
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
   $("#langbtn").setAttribute("aria-label", t("langAria"));
