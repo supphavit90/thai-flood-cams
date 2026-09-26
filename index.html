@@ -83,6 +83,11 @@
   .dampct { height:8px; border-radius:4px; background:var(--well); overflow:hidden; margin:6px 0 }
   .dampct i { display:block; height:100%; background:var(--dam) }
   .dampct.high i { background:var(--alert) } .dampct.over i { background:var(--wl-over) }
+  /* DOH highway incident = a small highway sign with the road number */
+  .hwy { display:inline-grid; place-items:center; min-width:26px; height:17px; padding:0 4px; border-radius:4px;
+         font:700 10px/1 var(--mono); border:1.5px solid var(--panel); box-shadow:0 1px 3px #0006;
+         transform:translate(-50%, -50%); background:var(--alert); color:#1d1d1b }
+  .hwy.closed { background:var(--wl-over); color:#fff }
   /* Longdo road-flood report = warning triangle (road purple; sensors are circles) */
   .lev { display:block; width:100%; height:100%; background:var(--road); clip-path:polygon(50% 0, 100% 100%, 0 100%);
          filter:drop-shadow(0 0 1px var(--panel)) drop-shadow(0 1px 2px #0006) }
@@ -299,6 +304,7 @@
       <div class="hours" id="rephours" role="group" data-i18n-aria="repWindow">
         <button data-h="1">1 h</button><button data-h="3">3 h</button><button data-h="6">6 h</button><button data-h="12">12 h</button><button data-h="24">24 h</button>
       </div>
+      <label class="switch"><input type="checkbox" id="l-hwy" checked><span><span data-i18n="lHwy">Highway flooding</span><small data-i18n="lHwySrc">Dept. of Highways · passable or not · every 30 min</small></span></label>
       <label class="switch"><input type="checkbox" id="l-events" checked><span><span data-i18n="lEvents">Road flood reports</span><small data-i18n="lEventsSrc">Longdo Traffic (iTIC) · last 6 h · every 10 min</small></span></label>
       <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · last 48 h</small></span></label>
     </div>
@@ -329,6 +335,8 @@
         <span><i class="dam high" style="width:9px;height:12px;display:inline-block"><i style="height:85%"></i></i><span data-i18n="kDam">Dam, fill = storage (amber 80%+, red over 100%)</span></span>
         <span><i class="rainpill r1" style="transform:none;min-width:22px;height:14px;font-size:9px">50</i><span data-i18n="kRain1">Heavy rain, 35–90 mm / 24 h</span></span>
         <span><i class="rainpill r2" style="transform:none;min-width:22px;height:14px;font-size:9px">120</i><span data-i18n="kRain2">Very heavy rain, 90 mm+ / 24 h</span></span>
+        <span><i class="hwy closed" style="transform:none;min-width:20px;height:13px;font-size:8px">24</i><span data-i18n="kHwyClosed">Highway impassable (Highways Dept)</span></span>
+        <span><i class="hwy" style="transform:none;min-width:20px;height:13px;font-size:8px">224</i><span data-i18n="kHwyOpen">Highway flooded, passable</span></span>
         <span><i class="lev" style="width:11px;height:10px;display:inline-block"></i><span data-i18n="kEvent">Road flood report (Longdo), faded once expired</span></span>
         <span><i class="dot" style="background:var(--road)"></i><span data-i18n="kRoad">Road flooded, sized by cm</span></span>
       </div>
@@ -385,6 +393,13 @@ const I18N = {
     title: "Thai Flood Cams", search: "Search", wall: "Wall",
     wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
     hSensors: "Water sensors", hReports: "Reports", hWeather: "Weather",
+    lHwy: "Highway flooding", lHwySrc: "Dept. of Highways · passable or not · every 30 min",
+    kHwyClosed: "Highway impassable (Highways Dept)", kHwyOpen: "Highway flooded, passable",
+    hwyRoad: (r, sec, km) => `Highway ${r}` + (sec ? ` · ${sec}` : "") + (km ? ` · km ${km}` : ""),
+    hwyClosed: why => `Impassable${why ? `: ${why}` : ""}`, hwyOpen: "Passable, take care",
+    hwyDepth: cm => `Water about ${cm} cm deep`, hwySince: d => `Since ${d}`, hwyBypass: "Detour",
+    hwyVia: "Dept. of Highways disaster centre (hdms.doh.go.th)",
+    hwyNote: (n, c) => ` · ${n} flooded highway points (${c} impassable)`,
     lEvents: "Road flood reports", lEventsSrc: "Longdo Traffic (iTIC) · last 6 h · every 10 min",
     kEvent: "Road flood report (Longdo), faded once expired", evVia: "Longdo Traffic road event",
     evTime: (a, b) => `Reported ${a}` + (b ? ` · expected until ${b}` : ""), evOpen: "Open on Longdo Traffic ↗",
@@ -460,6 +475,13 @@ const I18N = {
     title: "กล้องติดตามน้ำท่วม", search: "ค้นหา", wall: "รวมกล้อง",
     wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
     hSensors: "เซนเซอร์วัดน้ำ", hReports: "รายงาน", hWeather: "สภาพอากาศ",
+    lHwy: "น้ำท่วมทางหลวง", lHwySrc: "กรมทางหลวง · ผ่านได้หรือไม่ · ทุก 30 นาที",
+    kHwyClosed: "ทางหลวงผ่านไม่ได้ (กรมทางหลวง)", kHwyOpen: "ทางหลวงน้ำท่วม ผ่านได้",
+    hwyRoad: (r, sec, km) => `ทางหลวงหมายเลข ${r}` + (sec ? ` · ${sec}` : "") + (km ? ` · กม. ${km}` : ""),
+    hwyClosed: why => `ผ่านไม่ได้${why ? `: ${why}` : ""}`, hwyOpen: "ผ่านได้ โปรดระมัดระวัง",
+    hwyDepth: cm => `ระดับน้ำประมาณ ${cm} ซม.`, hwySince: d => `ตั้งแต่ ${d}`, hwyBypass: "เส้นทางเลี่ยง",
+    hwyVia: "ศูนย์บริหารงานอุบัติภัย กรมทางหลวง (hdms.doh.go.th)",
+    hwyNote: (n, c) => ` · ทางหลวงน้ำท่วม ${n} จุด (ผ่านไม่ได้ ${c})`,
     lEvents: "รายงานน้ำท่วมถนน", lEventsSrc: "Longdo Traffic (iTIC) · 6 ชม. ล่าสุด · ทุก 10 นาที",
     kEvent: "รายงานน้ำท่วมถนน (Longdo) จางลงเมื่อหมดเวลา", evVia: "เหตุการณ์จราจรจาก Longdo Traffic",
     evTime: (a, b) => `แจ้งเมื่อ ${a}` + (b ? ` · คาดว่าถึง ${b}` : ""), evOpen: "เปิดใน Longdo Traffic ↗",
@@ -828,6 +850,7 @@ function draw() {
   $("#count").textContent = t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
     + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood, floodOn()) : "")
     + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), repHours) : "")
+    + (hwy.length && $("#l-hwy").checked ? t("hwyNote", hwy.length, hwy.filter(h => h.closed).length) : "")
     + (events.length && $("#l-events").checked ? t("evNote", events.length) : "")
     + (dams.length && $("#l-dam").checked ? t("damNote", dams.filter(d => d.pct >= 80).length) : "")
     + (rain.length && $("#l-rain").checked ? t("rainNote", rain.length, rain.filter(g => g.mm24 >= 90).length) : "");
@@ -905,6 +928,43 @@ function renderPhotos() {
         html: `<div class="photo-pin"><img src="${esc(photoUrl(ph, true))}" alt="" loading="lazy"></div>` }) })
       .bindTooltip(`${ph.caption ? ph.caption + " · " : ""}${ago(ph.created_at)}`, { direction: "top", offset: [0, -18] })
       .on("click", () => openPhoto(ph)).addTo(photoLayer);
+}
+
+/* ---------- highway flooding (Dept. of Highways public disaster dashboard) ----------
+   Fetched straight from the browser: DOH (like BMA) cuts off servers abroad, but
+   its public endpoint is CORS-open. ~600 KB uncompressed, so every 30 min rather
+   than every refresh. Reporter names / phone numbers in the feed are never shown. */
+let hwy = [], hwyAt = 0;
+const hwyLayer = L.layerGroup();
+async function loadHwy(force) {
+  if (!force && Date.now() - hwyAt < 30 * 60e3) return;
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+  const r = await fetch(`https://hdms.doh.go.th/internal-api/public/dashboard?start=${day}&end=${day}&searchText=&division=&district=&depot=`
+    + `&province=&amphoe=&tambon=&incidentType=&status=open&floodLevel=&passage=all`, { cache: "no-store" }).catch(() => null);
+  if (!r?.ok) return;
+  hwy = (await r.json()).filter(x => x.incident_type_id === 1 && x.latitude && x.longitude).map(x => ({
+    lat: +x.latitude, lon: +x.longitude, title: x.case_name, road: String(x.road_code || "").replace(/^0+/, ""),
+    section: x.section_name, km: [x.km_start, x.km_end].filter(Boolean).join("–"), cm: x.flood_level,
+    // the dashboard counts an incident as impassable when it has a closure reason
+    closed: !!(x.road_closure_text || x.cause_of_roads_closure_id), why: x.road_closure_text,
+    cause: x.cause_of_accident, relief: x.initial_relief, bypass: x.bypass_desc, since: x.start_date }));
+  hwyAt = Date.now();
+  renderHwy(); draw();
+}
+function renderHwy() {
+  hwyLayer.clearLayers();
+  for (const h of hwy) L.marker([h.lat, h.lon], { zIndexOffset: h.closed ? 900 : 800,
+      icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<i class="hwy${h.closed ? " closed" : ""}">${esc(h.road || "!")}</i>` }) })
+    .bindTooltip(`${t("hwyRoad", h.road, "", "")}: ${h.closed ? t("hwyClosed", h.why) : t("hwyOpen")}`, { direction: "top", offset: [0, -10] })
+    .bindPopup(() => `<b>${esc(h.title || t("lHwy"))}</b><br>`
+      + `<span class="reading">${esc(t("hwyRoad", h.road, h.section, h.km))}</span><br>`
+      + `<span class="rep-state" style="margin:6px 0;display:inline-block;${h.closed ? "background:var(--wl-over);color:#fff" : ""}">${esc(h.closed ? t("hwyClosed", h.why) : t("hwyOpen"))}</span><br>`
+      + (h.cm && h.cm !== "0" ? `${esc(t("hwyDepth", h.cm))}<br>` : "")
+      + (h.cause ? `<div style="max-width:260px;margin-top:4px">${esc(h.cause)}</div>` : "")
+      + (h.relief ? `<div class="reading" style="max-width:260px;margin-top:4px">${esc(h.relief)}</div>` : "")
+      + (h.bypass ? `<div style="max-width:260px;margin-top:4px"><b>${t("hwyBypass")}:</b> ${esc(h.bypass)}</div>` : "")
+      + `<div class="reading" style="margin-top:6px">${h.since ? esc(t("hwySince", when(h.since))) + " · " : ""}${t("hwyVia")}</div>`, { maxWidth: 290 })
+    .addTo(hwyLayer);
 }
 
 /* ---------- road flood reports (Longdo Traffic events via public.road_events) ---------- */
@@ -1563,6 +1623,8 @@ fetch("cameras.json").then(r => r.json()).then(data => {
   const solo = /^#cam-(\d+)$/.exec(location.hash);
   if (solo) return soloView(cams.find(c => c.id === +solo[1]));
   syncFlood();
+  if ($("#l-hwy").checked) hwyLayer.addTo(map);
+  loadHwy(true);
   if (photosOn) {
     new AddPhoto().addTo(map);
     $("#addphoto").title = t("addPhoto"); $("#addphoto").setAttribute("aria-label", t("addPhoto"));
@@ -1589,7 +1651,7 @@ async function refreshAll(manual) {
   trendCache.clear();
   await Promise.allSettled([
     FLOOD_KINDS.some(k => $(`#l-${k}`).checked) ? loadFlood().catch(() => { flood = "error"; draw(); }) : null,
-    photosOn && loadPhotos(), photosOn && loadReports(), photosOn && loadRain(), photosOn && loadDams(), photosOn && loadEvents(),
+    loadHwy(manual), photosOn && loadPhotos(), photosOn && loadReports(), photosOn && loadRain(), photosOn && loadDams(), photosOn && loadEvents(),
     $("#radar").checked && loadRadar(),
   ]);
   lastRefresh = Date.now();
@@ -1616,6 +1678,7 @@ function soloView(cam) {
 }
 
 $("#photofile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) startCompose(f).catch(() => toast(t("postFail"))); };
+$("#l-hwy").onchange = e => { e.target.checked ? hwyLayer.addTo(map) : map.removeLayer(hwyLayer); draw(); };
 $("#l-events").onchange = e => { e.target.checked ? eventLayer.addTo(map) : map.removeLayer(eventLayer); draw(); };
 $("#l-dam").onchange = e => { e.target.checked ? damLayer.addTo(map) : map.removeLayer(damLayer); draw(); };
 $("#l-rain").onchange = e => { e.target.checked ? rainLayer.addTo(map) : map.removeLayer(rainLayer); draw(); };
@@ -1654,6 +1717,7 @@ function applyLang() {
   if (rain.length) renderRain();
   if (dams.length) renderDams();
   if (events.length) renderEvents();
+  if (hwy.length) renderHwy();
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
   $("#langbtn").setAttribute("aria-label", t("langAria"));
