@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""BMA road-flood sensors, underpass tunnels and canal levels -> bma.json
+"""BMA road-flood sensors, underpass tunnels, canal levels and rain gauges -> bma.json
 (run by the GitHub Action every 20 min).
 
     curl -sf -A "$UA" -H "Accept: text/html" https://weather.bangkok.go.th/Flood -o flood.html
     curl -sf -A "$UA" -H "Accept: application/json" -d payload=x \
          https://weather.bangkok.go.th/water/PageMap/GoogleMap -o canals.json
-    python3 bma_fetch.py flood.html canals.json
+    curl -sf -A "$UA" -H "Accept: text/html" https://weather.bangkok.go.th/rain -o rain.html
+    python3 bma_fetch.py flood.html canals.json rain.html
 
 
 Roads + tunnels are JSON inside the /Flood page; canals come from the endpoint
@@ -21,9 +22,10 @@ from datetime import datetime, timedelta, timezone
 
 
 def grab(html, name):
-    m = re.search(rf"const {name} = (\[.*?\]);\s*\n", html, re.S)
+    m = re.search(rf"(?:const|var|let) {name} = (\[.*?\]);\s*\n", html, re.S) \
+        or re.search(rf"(?:const|var|let) {name} = (\[\{{.*?\}}\]);", html, re.S)
     if not m:
-        raise ValueError(f"{name} not found - weather.bangkok.go.th/Flood changed shape (or 403 page)")
+        raise ValueError(f"{name} not found - BMA page changed shape (or a 403 page)")
     return json.loads(m.group(1))
 
 
@@ -47,6 +49,23 @@ def roads_and_tunnels(path):
     if len(roads) < 100:
         raise ValueError(f"only {len(roads)} road sensors")
     return roads, tunnels
+
+
+def rain(path):
+    """BMA's ~120 rain gauges in Bangkok (weather.bangkok.go.th/rain, inline JSON)."""
+    html = open(path, encoding="utf8", errors="replace").read()
+    out = []
+    for r in grab(html, "datawater"):
+        u = r.get("station_lastupdate") or {}
+        if not (r.get("latitude") and r.get("longitude") and u.get("site_timestamp")):
+            continue
+        out.append({"code": r.get("rain_code"), "th": r.get("rain_name"), "en": r.get("rain_name_en"),
+                    "y": r["latitude"], "x": r["longitude"], "ts": u["site_timestamp"][:16],
+                    "h1": u.get("rf1hr"), "h3": u.get("rf3hr"), "h6": u.get("rf6hr"),
+                    "h12": u.get("rf12hr"), "h24": u.get("rf24hr")})
+    if len(out) < 50:
+        raise ValueError(f"only {len(out)} rain gauges")
+    return out
 
 
 def canals(path):
@@ -78,12 +97,18 @@ def main():
         out["canals"] = canals(sys.argv[2]); fresh.append("canals")
     except (OSError, ValueError) as e:
         print(f"canals: kept previous ({e})")
+    if len(sys.argv) > 3:
+        try:
+            out["rain"] = rain(sys.argv[3]); fresh.append("rain")
+        except (OSError, ValueError) as e:
+            print(f"rain: kept previous ({e})")
     if not fresh:
         sys.exit("both BMA sources failed - bma.json left as it was")
     out["fetched"] = datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%dT%H:%M")
     json.dump(out, open("bma.json", "w", encoding="utf8"), ensure_ascii=False, separators=(",", ":"))
     print(f"bma.json: fresh {', '.join(fresh)} - {len(out.get('roads', []))} roads, "
-          f"{len(out.get('tunnels', []))} tunnels, {len(out.get('canals', []))} canals, at {out['fetched']}")
+          f"{len(out.get('tunnels', []))} tunnels, {len(out.get('canals', []))} canals, "
+          f"{len(out.get('rain', []))} rain gauges, at {out['fetched']}")
 
 
 if __name__ == "__main__":
