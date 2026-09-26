@@ -59,7 +59,23 @@
   #locate { width:40px; height:40px; display:grid; place-items:center; border-radius:8px;
             border:1px solid var(--line); background:var(--panel); color:var(--ink); box-shadow:var(--shadow) }
   #locate.busy { color:var(--accent) }
-  #locate svg { width:20px; height:20px }
+  #locate svg, #addphoto svg { width:20px; height:20px }
+  #addphoto { width:40px; height:40px; display:grid; place-items:center; border-radius:8px; margin-bottom:8px;
+              border:1px solid var(--line); background:var(--panel); color:var(--ink); box-shadow:var(--shadow) }
+  .photo-pin { width:100%; height:100%; border-radius:8px; border:2px solid var(--panel); overflow:hidden;
+               box-shadow:0 0 0 1.5px var(--accent), 0 2px 6px #0006; background:var(--well) }
+  .photo-pin img { width:100%; height:100%; object-fit:cover; display:block }
+  .photo-full { width:100%; max-width:100%; border-radius:8px; display:block; background:#111 }
+  .compose { display:grid; gap:12px }
+  .compose textarea { width:100%; min-height:64px; resize:vertical; padding:10px; border-radius:8px;
+                      border:1px solid var(--line); background:var(--well); font:inherit; color:var(--ink) }
+  .compose textarea:focus { outline:none; border-color:var(--accent) }
+  .compose .row2 { display:flex; gap:8px } .compose .row2 .key { flex:1; justify-content:center }
+  .key.primary { background:var(--ink); color:var(--bg); border-color:var(--ink) }
+  .key:disabled { opacity:.5; cursor:default }
+  #p-place .thumbs { display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:6px }
+  #p-place .thumbs button { all:unset; cursor:pointer; aspect-ratio:1; border-radius:6px; overflow:hidden; background:var(--well) }
+  #p-place .thumbs img { width:100%; height:100%; object-fit:cover; display:block }
   .me { width:16px; height:16px; border-radius:50%; background:var(--accent); border:3px solid var(--panel);
         box-shadow:0 0 0 1px var(--accent), 0 1px 4px #0006 }
   #toast { position:absolute; z-index:800; left:50%; bottom:calc(24px + env(safe-area-inset-bottom, 0px));
@@ -222,6 +238,7 @@
     <div class="group">
       <h3 data-i18n="hFlood">Flood</h3>
       <label class="switch"><input type="checkbox" id="flood" checked><span><span data-i18n="floodLayer">River levels &amp; flooded roads</span><small data-i18n="floodSrc">thaiwater.net · updates every 10 min</small></span></label>
+      <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · last 72 h</small></span></label>
       <label class="switch"><input type="checkbox" id="radar"><span><span data-i18n="radar">Rain radar</span><small data-i18n="radarSrc">RainViewer · updates every 10 min</small></span></label>
     </div>
     <div class="group">
@@ -241,6 +258,7 @@
         <span><i class="dot" style="background:var(--wl-over)"></i><span data-i18n="kOver">River over the bank</span></span>
         <span><i class="dot dia" style="background:var(--wl-over)"></i><span data-i18n="kCanalCrit">Canal critical (BMA)</span></span>
         <span><i class="dot dia" style="background:var(--alert)"></i><span data-i18n="kCanalAlert">Canal alert (BMA)</span></span>
+        <span><i class="dot sq" style="background:var(--well);box-shadow:0 0 0 1.5px var(--accent)"></i><span data-i18n="kPhoto">Community photo</span></span>
         <span><i class="dot" style="background:var(--road)"></i><span data-i18n="kRoad">Road flooded, sized by cm</span></span>
       </div>
       <p class="reading" style="margin:10px 0 0" data-i18n="areaHint">Long-press the map (right-click on a computer) to see readings and cameras around that spot.</p>
@@ -268,6 +286,7 @@
 </div>
 
 <div id="toast" role="status" hidden></div>
+<input type="file" id="photofile" accept="image/*" capture="environment" hidden>
 
 <div id="wall">
   <div class="hint"><span data-i18n="wallHint">Cameras in view. Tap one to open it.</span><button class="key" id="wallclose" data-i18n="backToMap">Back to map</button></div>
@@ -304,6 +323,14 @@ const I18N = {
     myLocation: "My location", thisSpot: "This spot", pCanals: "Nearest canal stations (BMA)",
     critical: "critical", alert: "alert", offlineSt: "out of order", tunnel: "Underpass",
     canal: (m, w, c) => `level ${m ?? "–"} m (alert ${w ?? "–"}, critical ${c ?? "–"})`,
+    photosLayer: "Community photos", photosSrc: "Posted by visitors · last 72 h", kPhoto: "Community photo",
+    addPhoto: "Add a photo of flooding here", pPhotos: "Photos within 2 km", photoTitle: "Flood photo",
+    composeTitle: "Post a flood photo", captionPh: "What's it like? e.g. knee-deep, road closed (optional)",
+    composeHint: "Drag the orange pin to where you took it. Don't include people's faces or licence plates. Photos are public and show for 72 hours.",
+    post: "Post photo", posting: "Posting…", cancel: "Cancel", posted: "Photo posted. Thank you!",
+    postFail: "Couldn't post the photo. Check your connection and try again.", tooMany: "Too many photos from this connection. Try again in an hour.",
+    report: "Report photo", reported: "Reported. Photos with 3 reports are hidden.", openFull: "Open full size ↗",
+    noPhotoHere: "Photos can only be posted in Thailand.",
     pRivers: "Nearest river stations", pRoads: "Road flood sensors within 2 km",
     pCams: "Cameras within 2 km", pNone: "Nothing within range.", normal: "normal", cm: "cm",
     pStale: "These road readings are from the last time thaiwater.net received them, not live.",
@@ -343,6 +370,14 @@ const I18N = {
     myLocation: "ตำแหน่งของฉัน", thisSpot: "จุดนี้", pCanals: "สถานีวัดระดับน้ำคลองใกล้เคียง (กทม.)",
     critical: "วิกฤต", alert: "เฝ้าระวัง", offlineSt: "ขัดข้อง", tunnel: "อุโมงค์ทางลอด",
     canal: (m, w, c) => `ระดับ ${m ?? "–"} ม. (เฝ้าระวัง ${w ?? "–"}, วิกฤต ${c ?? "–"})`,
+    photosLayer: "ภาพจากผู้ใช้", photosSrc: "ผู้ใช้ส่งมา · 72 ชม. ล่าสุด", kPhoto: "ภาพจากผู้ใช้",
+    addPhoto: "ส่งภาพน้ำท่วมตรงนี้", pPhotos: "ภาพในรัศมี 2 กม.", photoTitle: "ภาพน้ำท่วม",
+    composeTitle: "ส่งภาพน้ำท่วม", captionPh: "สถานการณ์เป็นอย่างไร เช่น น้ำท่วมถึงเข่า ถนนปิด (ไม่บังคับ)",
+    composeHint: "ลากหมุดสีส้มไปยังจุดที่ถ่ายภาพ ไม่ควรมีใบหน้าคนหรือป้ายทะเบียนรถ ภาพจะแสดงต่อสาธารณะเป็นเวลา 72 ชั่วโมง",
+    post: "ส่งภาพ", posting: "กำลังส่ง…", cancel: "ยกเลิก", posted: "ส่งภาพแล้ว ขอบคุณ!",
+    postFail: "ส่งภาพไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองใหม่", tooMany: "ส่งภาพจากการเชื่อมต่อนี้มากเกินไป ลองใหม่ในอีก 1 ชั่วโมง",
+    report: "รายงานภาพนี้", reported: "รายงานแล้ว ภาพที่ถูกรายงาน 3 ครั้งจะถูกซ่อน", openFull: "เปิดภาพขนาดเต็ม ↗",
+    noPhotoHere: "ส่งภาพได้เฉพาะในประเทศไทย",
     pRivers: "สถานีวัดระดับน้ำใกล้เคียง", pRoads: "เซนเซอร์น้ำท่วมถนนในรัศมี 2 กม.",
     pCams: "กล้องในรัศมี 2 กม.", pNone: "ไม่มีในระยะนี้", normal: "ปกติ", cm: "ซม.",
     pStale: "ค่าถนนเหล่านี้เป็นข้อมูลล่าสุดที่ thaiwater.net ได้รับ ไม่ใช่ค่าสด",
@@ -582,6 +617,13 @@ const Locate = L.Control.extend({ options: { position: "bottomright" }, onAdd() 
   b.onclick = () => { b.classList.add("busy"); map.locate({ setView: true, maxZoom: 14, enableHighAccuracy: true }); };
   return b;
 } });
+const AddPhoto = L.Control.extend({ options: { position: "bottomright" }, onAdd() {
+  const b = L.DomUtil.create("button"); b.id = "addphoto";
+  b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/><path d="M19 3v4M17 5h4"/></svg>';
+  L.DomEvent.disableClickPropagation(b);
+  b.onclick = () => $("#photofile").click();
+  return b;
+} });
 new Locate().addTo(map);
 let me, meRing;
 map.on("locationfound", e => {
@@ -675,12 +717,129 @@ async function showArea(p) {
   if (!floodData) { try { await loadFlood(); } catch {} }
   if ($("#p-place").hidden) return;   // user moved on
   box.innerHTML = placeSummary(p);
+  box.querySelectorAll("[data-photo]").forEach(b => b.onclick = () => openPhoto(photos.find(ph => ph.id === b.dataset.photo)));
   box.querySelectorAll("[data-cam]").forEach(b => {
     b.onclick = () => openCam(cams[+b.dataset.cam]);
     b.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); b.click(); } };
   });
 }
 map.on("contextmenu", e => showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("thisSpot"), pin: true }));
+/* ---------- community photos (Supabase: storage bucket + flood_photos table) ----------
+   Anyone can post; nothing to sign in to. Setup SQL: supabase/flood_photos.sql.
+   The publishable key is meant to be public - row-level security decides what
+   it can do (insert + read recent only). Empty url -> the feature stays hidden. */
+const SB = { url: "https://gdedujyxbvbghbttpsog.supabase.co", key: "sb_publishable_ygcqBjEX3FJyA8yuGYqzLQ_HjCrIoDC" };
+const photosOn = !!(SB.url && SB.key);
+const photoLayer = L.layerGroup();
+let photos = [], draft = null;
+const photoUrl = (ph, thumb) => `${SB.url}/storage/v1/object/public/flood-photos/${ph.path}${thumb ? "_t" : ""}.jpg`;
+const ago = iso => {
+  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  const rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+  return min < 60 ? rtf.format(-min, "minute") : rtf.format(-Math.round(min / 60), "hour");
+};
+const sb = (path, opt = {}) => fetch(SB.url + path, { ...opt, headers: { apikey: SB.key, ...(opt.headers || {}) } });
+
+async function loadPhotos() {
+  if (!photosOn) return;
+  const r = await sb("/rest/v1/flood_photos?select=id,created_at,lat,lon,caption,path&order=created_at.desc&limit=500", { cache: "no-store" });
+  if (!r.ok) return;
+  photos = await r.json();
+  renderPhotos();
+}
+function renderPhotos() {
+  photoLayer.clearLayers();
+  for (const ph of photos)
+    L.marker([ph.lat, ph.lon], { zIndexOffset: 500, riseOnHover: true,
+      icon: L.divIcon({ className: "", iconSize: [38, 38],
+        html: `<div class="photo-pin"><img src="${esc(photoUrl(ph, true))}" alt="" loading="lazy"></div>` }) })
+      .bindTooltip(`${ph.caption ? ph.caption + " · " : ""}${ago(ph.created_at)}`, { direction: "top", offset: [0, -18] })
+      .on("click", () => openPhoto(ph)).addTo(photoLayer);
+}
+
+// shared set-up for panel views that aren't a camera
+function panelCustom(title, sub) {
+  cleanup(); cleanup = () => {}; current = null; pin?.remove(); pin = null;
+  $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false);
+  $("#p-name").textContent = title; $("#p-sub").textContent = sub;
+  for (const id of ["#p-view", "#p-meta", "#panel .row"]) $(id).hidden = true;
+  const box = $("#p-place"); box.hidden = false;
+  $("#panel").classList.add("open");
+  return box;
+}
+function openPhoto(ph) {
+  if (!ph) return;
+  const box = panelCustom(t("photoTitle"), ago(ph.created_at));
+  box.innerHTML = `<img class="photo-full" src="${esc(photoUrl(ph))}" alt="${esc(ph.caption || t("photoTitle"))}">`
+    + (ph.caption ? `<p style="margin:0">${esc(ph.caption)}</p>` : "")
+    + `<p class="reading" style="margin:0">${esc(new Date(ph.created_at).toLocaleString(lang === "th" ? "th-TH" : "en-GB", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" }))} · ${ph.lat.toFixed(4)}, ${ph.lon.toFixed(4)}</p>`
+    + `<div class="row2" style="display:flex;gap:8px"><a class="key" style="flex:1;justify-content:center;text-decoration:none" href="${esc(photoUrl(ph))}" target="_blank" rel="noopener">${t("openFull")}</a>`
+    + `<button class="key" id="reportbtn" style="flex:1;justify-content:center">${t("report")}</button></div>`;
+  map.panTo([ph.lat, ph.lon]);
+  $("#reportbtn").onclick = async e => {
+    e.target.disabled = true;
+    await sb("/rest/v1/rpc/report_flood_photo", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photo: ph.id }) }).catch(() => {});
+    toast(t("reported"));
+  };
+}
+
+// Redrawing through a canvas does two jobs: shrinks the file, and drops EXIF -
+// phone photos carry the exact GPS of where they were taken.
+async function toJpeg(file, max, q) {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = Object.assign(document.createElement("canvas"), { width: Math.round(bmp.width * k), height: Math.round(bmp.height * k) });
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise(res => c.toBlob(res, "image/jpeg", q));
+}
+function hereOrCenter() {
+  return new Promise(res => {
+    const fallback = () => res(map.getCenter());
+    if (!navigator.geolocation) return fallback();
+    navigator.geolocation.getCurrentPosition(p => res(L.latLng(p.coords.latitude, p.coords.longitude)),
+      fallback, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+  });
+}
+function endDraft() { draft?.marker.remove(); draft = null; }
+async function startCompose(file) {
+  const [full, thumb, at] = await Promise.all([toJpeg(file, 1280, .72), toJpeg(file, 240, .7), hereOrCenter()]);
+  endDraft();
+  draft = { full, thumb, marker: L.marker(at, { draggable: true, autoPan: true, zIndexOffset: 1200,
+    icon: L.divIcon({ className: "", html: '<div class="area-pin" style="background:var(--accent)"><span></span></div>', iconSize: [30, 30], iconAnchor: [4, 30] }) }).addTo(map) };
+  map.setView(at, Math.max(map.getZoom(), 16));
+  const box = panelCustom(t("composeTitle"), "");
+  box.innerHTML = `<div class="compose"><img class="photo-full" src="${URL.createObjectURL(full)}" alt="">`
+    + `<textarea id="caption" maxlength="140" placeholder="${esc(t("captionPh"))}"></textarea>`
+    + `<p class="reading" style="margin:0">${t("composeHint")}</p>`
+    + `<div class="row2"><button class="key" id="cancelpost">${t("cancel")}</button><button class="key primary" id="dopost">${t("post")}</button></div></div>`;
+  $("#cancelpost").onclick = () => { endDraft(); $("#close").click(); };
+  $("#dopost").onclick = postDraft;
+}
+async function postDraft() {
+  const btn = $("#dopost"), { lat, lng } = draft.marker.getLatLng();
+  if (lat < 5 || lat > 21 || lng < 97 || lng > 106) return toast(t("noPhotoHere"));
+  btn.disabled = true; btn.textContent = t("posting");
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });   // YYYY-MM-DD
+  const path = `${day}/${crypto.randomUUID()}`;
+  const put = (name, blob) => sb(`/storage/v1/object/flood-photos/${name}`, { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob });
+  try {
+    const up = await Promise.all([put(`${path}.jpg`, draft.full), put(`${path}_t.jpg`, draft.thumb)]);
+    if (!up.every(r => r.ok)) throw new Error("upload");
+    const r = await sb("/rest/v1/flood_photos", { method: "POST",
+      headers: { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ lat, lon: lng, caption: $("#caption").value.trim() || null, path }) });
+    if (!r.ok) throw new Error((await r.text()).includes("Too many") ? "rate" : "insert");
+    endDraft();
+    toast(t("posted"));
+    await loadPhotos();
+    openPhoto(photos.find(ph => ph.path === path));
+  } catch (e) {
+    btn.disabled = false; btn.textContent = t("post");
+    toast(e.message === "rate" ? t("tooMany") : t("postFail"));
+  }
+}
+
 function placeSummary(p) {
   const near = (list, lat, lon, km) => list.map(r => [distKm(p.y, p.x, lat(r), lon(r)), r])
     .filter(([d]) => d <= km).sort((a, z) => a[0] - z[0]);
@@ -712,6 +871,10 @@ function placeSummary(p) {
       + (flood?.roadStale ? `<p class="none" style="margin-top:6px">${t("pStale")}</p>` : "")
       : `<p class="none">${t("pNone")}</p>`) + "</section>");
   }
+  const np = near(photos, ph => ph.lat, ph => ph.lon, 2).slice(0, 12);
+  if (np.length) out.push(`<section><h3>${t("pPhotos")}</h3><div class="thumbs">`
+    + np.map(([d, ph]) => `<button data-photo="${esc(ph.id)}" title="${esc(`${kmTxt(d)} · ${ago(ph.created_at)}`)}"><img src="${esc(photoUrl(ph, true))}" alt="${esc(ph.caption || t("photoTitle"))}" loading="lazy"></button>`).join("")
+    + "</div></section>");
   // every camera nearby, whatever the filters say - this is "what can I see around here"
   const nc = near(cams.filter(c => c.y != null), c => c.y, c => c.x, 2).slice(0, 8);
   out.push(`<section><h3>${t("pCams")}</h3>` + (nc.length ? "<ul>" + nc.map(([d, c]) =>
@@ -970,6 +1133,12 @@ fetch("cameras.json").then(r => r.json()).then(data => {
   const solo = /^#cam-(\d+)$/.exec(location.hash);
   if (solo) return soloView(cams.find(c => c.id === +solo[1]));
   if ($("#flood").checked) $("#flood").onchange({ target: $("#flood") });   // on by default
+  if (photosOn) {
+    new AddPhoto().addTo(map);
+    $("#addphoto").title = t("addPhoto"); $("#addphoto").setAttribute("aria-label", t("addPhoto"));
+    if ($("#photos").checked) photoLayer.addTo(map);
+    loadPhotos(); setInterval(loadPhotos, 5 * 60e3);
+  } else $("#photos").closest("label").hidden = true;
 }).catch(() => $("#count").textContent = t("noList"));
 
 function soloView(cam) {
@@ -986,6 +1155,10 @@ function soloView(cam) {
   new MutationObserver(controls).observe(box, { childList: true, subtree: true });
 }
 
+$("#photofile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) startCompose(f).catch(() => toast(t("postFail"))); };
+$("#photos").onchange = e => { e.target.checked ? photoLayer.addTo(map) : map.removeLayer(photoLayer); lamp(); };
+$("#close").addEventListener("click", endDraft);
+
 function applyLang() {
   document.documentElement.lang = lang;
   document.title = t("title");
@@ -995,6 +1168,8 @@ function applyLang() {
   for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
   for (const el of document.querySelectorAll("[data-src]")) el.textContent = srcName(el.dataset.src);
   $("#locate").setAttribute("aria-label", t("locate")); $("#locate").title = t("locate");
+  if ($("#addphoto")) { $("#addphoto").title = t("addPhoto"); $("#addphoto").setAttribute("aria-label", t("addPhoto")); }
+  if (photos.length) renderPhotos();
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
   $("#langbtn").setAttribute("aria-label", t("langAria"));
