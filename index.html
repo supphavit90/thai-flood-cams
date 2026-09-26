@@ -238,7 +238,7 @@
     <div class="group">
       <h3 data-i18n="hFlood">Flood</h3>
       <label class="switch"><input type="checkbox" id="flood" checked><span><span data-i18n="floodLayer">River levels &amp; flooded roads</span><small data-i18n="floodSrc">thaiwater.net · updates every 10 min</small></span></label>
-      <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · last 72 h</small></span></label>
+      <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · last 48 h</small></span></label>
       <label class="switch"><input type="checkbox" id="radar"><span><span data-i18n="radar">Rain radar</span><small data-i18n="radarSrc">RainViewer · updates every 10 min</small></span></label>
     </div>
     <div class="group">
@@ -323,10 +323,10 @@ const I18N = {
     myLocation: "My location", thisSpot: "This spot", pCanals: "Nearest canal stations (BMA)",
     critical: "critical", alert: "alert", offlineSt: "out of order", tunnel: "Underpass",
     canal: (m, w, c) => `level ${m ?? "–"} m (alert ${w ?? "–"}, critical ${c ?? "–"})`,
-    photosLayer: "Community photos", photosSrc: "Posted by visitors · last 72 h", kPhoto: "Community photo",
+    photosLayer: "Community photos", photosSrc: "Posted by visitors · last 48 h", kPhoto: "Community photo",
     addPhoto: "Add a photo of flooding here", pPhotos: "Photos within 2 km", photoTitle: "Flood photo",
     composeTitle: "Post a flood photo", captionPh: "What's it like? e.g. knee-deep, road closed (optional)",
-    composeHint: "Drag the orange pin to where you took it. Don't include people's faces or licence plates. Photos are public and show for 72 hours.",
+    composeHint: "Drag the orange pin to where you took it. Don't include people's faces or licence plates. Photos are public and deleted after 48 hours.",
     post: "Post photo", posting: "Posting…", cancel: "Cancel", posted: "Photo posted. Thank you!",
     postFail: "Couldn't post the photo. Check your connection and try again.", tooMany: "Too many photos from this connection. Try again in an hour.",
     report: "Report photo", reported: "Reported. Photos with 3 reports are hidden.", openFull: "Open full size ↗",
@@ -370,10 +370,10 @@ const I18N = {
     myLocation: "ตำแหน่งของฉัน", thisSpot: "จุดนี้", pCanals: "สถานีวัดระดับน้ำคลองใกล้เคียง (กทม.)",
     critical: "วิกฤต", alert: "เฝ้าระวัง", offlineSt: "ขัดข้อง", tunnel: "อุโมงค์ทางลอด",
     canal: (m, w, c) => `ระดับ ${m ?? "–"} ม. (เฝ้าระวัง ${w ?? "–"}, วิกฤต ${c ?? "–"})`,
-    photosLayer: "ภาพจากผู้ใช้", photosSrc: "ผู้ใช้ส่งมา · 72 ชม. ล่าสุด", kPhoto: "ภาพจากผู้ใช้",
+    photosLayer: "ภาพจากผู้ใช้", photosSrc: "ผู้ใช้ส่งมา · 48 ชม. ล่าสุด", kPhoto: "ภาพจากผู้ใช้",
     addPhoto: "ส่งภาพน้ำท่วมตรงนี้", pPhotos: "ภาพในรัศมี 2 กม.", photoTitle: "ภาพน้ำท่วม",
     composeTitle: "ส่งภาพน้ำท่วม", captionPh: "สถานการณ์เป็นอย่างไร เช่น น้ำท่วมถึงเข่า ถนนปิด (ไม่บังคับ)",
-    composeHint: "ลากหมุดสีส้มไปยังจุดที่ถ่ายภาพ ไม่ควรมีใบหน้าคนหรือป้ายทะเบียนรถ ภาพจะแสดงต่อสาธารณะเป็นเวลา 72 ชั่วโมง",
+    composeHint: "ลากหมุดสีส้มไปยังจุดที่ถ่ายภาพ ไม่ควรมีใบหน้าคนหรือป้ายทะเบียนรถ ภาพจะแสดงต่อสาธารณะและถูกลบหลัง 48 ชั่วโมง",
     post: "ส่งภาพ", posting: "กำลังส่ง…", cancel: "ยกเลิก", posted: "ส่งภาพแล้ว ขอบคุณ!",
     postFail: "ส่งภาพไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองใหม่", tooMany: "ส่งภาพจากการเชื่อมต่อนี้มากเกินไป ลองใหม่ในอีก 1 ชั่วโมง",
     report: "รายงานภาพนี้", reported: "รายงานแล้ว ภาพที่ถูกรายงาน 3 ครั้งจะถูกซ่อน", openFull: "เปิดภาพขนาดเต็ม ↗",
