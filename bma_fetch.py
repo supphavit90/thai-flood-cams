@@ -125,6 +125,26 @@ def missing_slots(state, n):
     print("\n".join(out))
 
 
+def flows(path):
+    """KlongMap flow gauges (gates, pump stations, Chao Phraya at Rama VIII):
+    flow in m3/s (negative = running against the gate's normal direction)."""
+    bkk = timezone(timedelta(hours=7))
+    out = []
+    for r in json.load(open(path, encoding="utf8"))["waterStation"]:
+        f, info = r.get("flow_level_last"), r.get("flow_station_info") or {}
+        if not f or not info.get("latitude"):
+            continue
+        ms = int(re.search(r"\d+", f["site_timestamp"]).group())
+        out.append({"code": info["flow_code"], "th": info.get("flow_name") or r.get("station_name"),
+                    "en": r.get("station_name_en"), "y": info["latitude"], "x": info["longitude"],
+                    "q": f.get("flow"), "v": f.get("mean_velocity"), "m": f.get("wl"),
+                    "warn": info.get("warning"), "crit": info.get("critical"),
+                    "ts": datetime.fromtimestamp(ms / 1000, bkk).strftime("%Y-%m-%dT%H:%M")})
+    if not out:
+        raise ValueError("no flow gauges")
+    return out
+
+
 def main():
     # BMA's firewall 403s /Flood now and then while /water still answers (or the
     # other way round). Whatever fails keeps its last good readings - they carry
@@ -147,13 +167,18 @@ def main():
             out["rain"] = rain(sys.argv[3]); fresh.append("rain")
         except (OSError, ValueError) as e:
             print(f"rain: kept previous ({e})")
+    if len(sys.argv) > 4:
+        try:
+            out["flows"] = flows(sys.argv[4]); fresh.append("flows")
+        except (OSError, ValueError, KeyError) as e:
+            print(f"flows: kept previous ({e})")
     if not fresh:
         sys.exit("both BMA sources failed - bma.json left as it was")
     out["fetched"] = datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%dT%H:%M")
     json.dump(out, open("bma.json", "w", encoding="utf8"), ensure_ascii=False, separators=(",", ":"))
     print(f"bma.json: fresh {', '.join(fresh)} - {len(out.get('roads', []))} roads, "
           f"{len(out.get('tunnels', []))} tunnels, {len(out.get('canals', []))} canals, "
-          f"{len(out.get('rain', []))} rain gauges, at {out['fetched']}")
+          f"{len(out.get('rain', []))} rain gauges, {len(out.get('flows', []))} flow gauges, at {out['fetched']}")
 
 
 if __name__ == "__main__":
