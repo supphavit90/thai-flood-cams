@@ -461,7 +461,7 @@ const I18N = {
     hwyVia: "Dept. of Highways disaster centre (hdms.doh.go.th)",
     hwyNote: (n, c) => ` · ${n} flooded highway points (${c} impassable)`,
     lEvents: "Road flood reports", lEventsSrc: "Longdo Traffic (iTIC) · every 10 min",
-    winTitle: "Time window: hide anything older, and compare trends with this long ago", winOpt: h => `${h} h`, hwyUpd: d => `updated ${d}`,
+    winTitle: "Time window: hide anything older, and compare trends with this long ago", winOpt: h => `${h} h`, hwyAsOf: (w, a) => `Last reported ${w} (${a})`,
     kEvent: "Road flood report (Longdo), faded once expired", evVia: "Longdo Traffic road event",
     evTime: (a, b) => `Reported ${a}` + (b ? ` · expected until ${b}` : ""), evOpen: "Open on Longdo Traffic ↗",
     evNote: n => ` · ${n} road flood reports`,
@@ -564,7 +564,7 @@ const I18N = {
     hwyVia: "ศูนย์บริหารงานอุบัติภัย กรมทางหลวง (hdms.doh.go.th)",
     hwyNote: (n, c) => ` · ทางหลวงน้ำท่วม ${n} จุด (ผ่านไม่ได้ ${c})`,
     lEvents: "รายงานน้ำท่วมถนน", lEventsSrc: "Longdo Traffic (iTIC) · ทุก 10 นาที",
-    winTitle: "ช่วงเวลา: ซ่อนข้อมูลที่เก่ากว่านี้ และเทียบแนวโน้มกับเมื่อ … ชม. ก่อน", winOpt: h => `${h} ชม.`, hwyUpd: d => `อัปเดต ${d}`,
+    winTitle: "ช่วงเวลา: ซ่อนข้อมูลที่เก่ากว่านี้ และเทียบแนวโน้มกับเมื่อ … ชม. ก่อน", winOpt: h => `${h} ชม.`, hwyAsOf: (w, a) => `รายงานล่าสุด ${w} (${a})`,
     kEvent: "รายงานน้ำท่วมถนน (Longdo) จางลงเมื่อหมดเวลา", evVia: "เหตุการณ์จราจรจาก Longdo Traffic",
     evTime: (a, b) => `แจ้งเมื่อ ${a}` + (b ? ` · คาดว่าถึง ${b}` : ""), evOpen: "เปิดใน Longdo Traffic ↗",
     evNote: n => ` · รายงานน้ำท่วมถนน ${n} จุด`,
@@ -1057,11 +1057,12 @@ function renderHwy() {
     .bindPopup(() => `<b>${esc(h.title || t("lHwy"))}</b><br>`
       + `<span class="reading">${esc(t("hwyRoad", h.road, h.section, h.km))}</span><br>`
       + `<span class="rep-state" style="margin:6px 0;display:inline-block;${h.closed ? "background:var(--wl-over);color:#fff" : ""}">${esc(h.closed ? t("hwyClosed", h.why) : t("hwyOpen"))}</span><br>`
+      + `<b>${esc(t("hwyAsOf", when(h.upd), ago(h.upd)))}</b><br>`
       + (h.cm && h.cm !== "0" ? `${esc(t("hwyDepth", h.cm))}<br>` : "")
       + (h.cause ? `<div style="max-width:260px;margin-top:4px">${esc(h.cause)}</div>` : "")
       + (h.relief ? `<div class="reading" style="max-width:260px;margin-top:4px">${esc(h.relief)}</div>` : "")
       + (h.bypass ? `<div style="max-width:260px;margin-top:4px"><b>${t("hwyBypass")}:</b> ${esc(h.bypass)}</div>` : "")
-      + `<div class="reading" style="margin-top:6px">${h.since ? esc(t("hwySince", when(h.since))) + " · " : ""}${esc(t("hwyUpd", ago(h.upd)))} · ${t("hwyVia")}</div>`, { maxWidth: 290 })
+      + `<div class="reading" style="margin-top:6px">${h.since ? esc(t("hwySince", when(h.since))) + " · " : ""}${t("hwyVia")}</div>`, { maxWidth: 290 })
     .addTo(hwyLayer);
 }
 
