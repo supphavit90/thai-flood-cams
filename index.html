@@ -77,7 +77,7 @@
   .hours[aria-disabled="true"] { opacity:.45; pointer-events:none }
   /* dam = a small tank filled to its storage level */
   .dam { position:relative; display:block; width:100%; height:100%; border-radius:3px; overflow:hidden;
-         background:var(--panel); border:1.5px solid var(--ink); box-shadow:0 1px 3px #0005 }
+         background:var(--panel); border:2px solid var(--ink); box-shadow:0 1px 3px #0005 }
   .dam i { position:absolute; left:0; right:0; bottom:0; background:var(--dam) }
   .dam.high i { background:var(--alert) } .dam.over i { background:var(--wl-over) }
   .dampct { height:8px; border-radius:4px; background:var(--well); overflow:hidden; margin:6px 0 }
@@ -189,8 +189,8 @@
         box-shadow:0 0 0 1.5px currentColor, 0 1px 3px #0005; font:700 10px/16px var(--sans); text-align:center; pointer-events:none }
   .tr.up { color:var(--wl-over) } .tr.down { color:var(--live) }
   /* inner <i>: Leaflet owns the icon element's own transform for positioning */
-  .canal { display:block; width:100%; height:100%; transform:rotate(45deg); border-radius:2px;
-           border:1.5px solid var(--panel); box-shadow:0 1px 3px #0005 }
+  .canal { display:block; width:100%; height:100%; transform:rotate(45deg) scale(.82); border-radius:2px;
+           border:2px solid var(--panel); box-shadow:0 1px 3px #0005 }
   .canal.crit { background:var(--wl-over) } .canal.alert { background:var(--alert) }
   .dot { width:10px; height:10px; border-radius:50%; flex:none; border:1.5px solid var(--panel);
          box-shadow:0 0 0 1px var(--line) }
@@ -1058,7 +1058,7 @@ function renderEvents() {
   eventLayer.addLayers(events.filter(e => Date.now() - Date.parse(e.starts) <= 6 * 3600e3).map(e => {
     const old = e.stops && Date.parse(e.stops) < Date.now();
     const title = lang === "en" && e.title_en ? e.title_en : e.title, body = lang === "en" && e.body_en ? e.body_en : e.body;
-    return L.marker([e.lat, e.lon], { icon: L.divIcon({ className: "", iconSize: [15, 13], html: `<i class="lev${old ? " old" : ""}"></i>` }) })
+    return L.marker([e.lat, e.lon], { icon: L.divIcon({ className: "", iconSize: [px(19), px(17)], html: `<i class="lev${old ? " old" : ""}"></i>` }) })
       .bindTooltip(`${title} · ${ago(e.starts)}`, { direction: "top", offset: [0, -8] })
       .bindPopup(() => `<b>${esc(title)}</b><br>`
         + (e.image ? `<img class="rep-photo" src="${esc(e.image)}" alt="" loading="lazy">` : "")
@@ -1086,7 +1086,7 @@ function renderDams() {
   for (const d of dams) {
     const name = bi({ th: d.name_th, en: d.name_en }), lv = damLevel(d.pct), fill = Math.max(4, Math.min(100, d.pct || 0));
     L.marker([d.lat, d.lon], { zIndexOffset: 400, pane: "sensors",
-        icon: L.divIcon({ className: "", iconSize: [13, 17], html: `<span class="dam ${lv}"><i style="height:${fill}%"></i></span>` }) })
+        icon: L.divIcon({ className: "", iconSize: [px(17), px(22)], html: `<span class="dam ${lv}"><i style="height:${fill}%"></i></span>` }) })
       .bindTooltip(`${name}: ${t("damFull", n(d.pct))}`, { direction: "top", offset: [0, -10] })
       .bindPopup(() => `<b>${esc(name)}</b><br>${t("damTitle")}`
         + `<div class="dampct ${lv}"><i style="width:${Math.min(100, d.pct || 0)}%"></i></div>`
@@ -1442,6 +1442,9 @@ $("#src").addEventListener("input", () => {
    ones that matter for flooding are drawn. Cameras are their own pins on the
    map, so a sensor popup is just its reading. */
 const TW = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/";
+// Marker size scale: bigger on touch screens, where small targets are hard to see and tap.
+const MS = matchMedia("(pointer: coarse)").matches ? 1.35 : 1;
+const px = n => Math.round(n * MS);
 // one layer per kind so each has its own switch; floodLayer holds the ones switched on
 const FLOOD_KINDS = ["river", "canal", "road", "tunnel"];
 const kindLayer = Object.fromEntries(FLOOD_KINDS.map(k => [k, L.layerGroup()]));
@@ -1631,7 +1634,7 @@ function renderFlood() {
     if (dv == null && hlHours === 1 && r.waterlevel_msl != null && r.waterlevel_msl_previous != null) dv = r.waterlevel_msl - r.waterlevel_msl_previous;
     const tr = trendOf(dv, 0.02, "m", 1);
     L.marker([st.tele_station_lat, st.tele_station_long], { pane: "sensors",
-      icon: dotIcon(lvl === 5 ? 16 : 12, lvl === 5 ? OVER : HIGH, tr.badge) })
+      icon: dotIcon(px(lvl === 5 ? 20 : 16), lvl === 5 ? OVER : HIGH, tr.badge) })
       .bindTooltip(`${name}: ${lvl === 5 ? t("tipOver") : t("tipHigh")}${tr.tip}`)
       .bindPopup(() => (
         `<b>${esc(name)}</b><br>${esc(bi(r.geocode?.province_name))}<br>`
@@ -1651,7 +1654,7 @@ function renderFlood() {
   const roadAt = latest(roads, r => r.ts), canalAt = latest(canals, r => r.ts);
   const roadStale = !roadAt || !fresh(bkkTime(roadAt));
 
-  const canalIcon = (lvl, badge) => L.divIcon({ className: "", iconSize: lvl === 4 ? [11, 11] : [9, 9],
+  const canalIcon = (lvl, badge) => L.divIcon({ className: "", iconSize: lvl === 4 ? [px(19), px(19)] : [px(16), px(16)],
     html: `<span class="sw"><i class="canal ${lvl === 4 ? "crit" : "alert"}"></i>${badge}</span>` });
   for (const c of canals) {
     if (!(c.lvl >= 3) || !fresh(bkkTime(c.ts))) continue;
@@ -1670,7 +1673,7 @@ function renderFlood() {
     if (!(r.cm > 0) || !fresh(r.t)) continue;
     wet++;
     const tr = trendOf(sensorTrend.get(r.code), 1, "cm", 100);
-    L.marker([r.y, r.x], { pane: "sensors", icon: dotIcon(Math.round(2 * (5 + Math.min(r.cm, 40) / 5)), ROAD, tr.badge) })
+    L.marker([r.y, r.x], { pane: "sensors", icon: dotIcon(px(14 + Math.min(r.cm, 40) / 2.5), ROAD, tr.badge) })
       .bindTooltip(`${bi(r)}: ${t("tipRoad", r.cm)}${tr.tip}`)
       .bindPopup(() => `<b>${esc(bi(r))}</b><br>${dot(ROAD)}${esc(t("road", r.cm))}<br>`
         + `<span class="reading">${esc(when(r.ts))} · ${t("roadSensor")}</span>`
@@ -1682,7 +1685,7 @@ function renderFlood() {
     if (!wetSides.length) continue;
     tun++;
     const cm = Math.max(...wetSides.map(sd => sd.cm));
-    L.marker([tn.y, tn.x], { pane: "sensors", icon: dotIcon(Math.round(2 * (7 + Math.min(cm, 40) / 5)), ROAD, "", "tun") })
+    L.marker([tn.y, tn.x], { pane: "sensors", icon: dotIcon(px(20 + Math.min(cm, 40) / 2.5), ROAD, "", "tun") })
       .bindTooltip(`${bi(tn)}: ${t("tipRoad", cm)}`)
       .bindPopup(() => `<b>${esc(bi(tn))}</b><br>${t("tunnel")}<br><span class="reading">`
         + tn.sides.map(sd => `${esc(sd.dir)}: ${esc(sd.cm)} ${t("cm")} · ${esc(when(sd.ts))}`).join("<br>") + "</span>"
