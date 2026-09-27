@@ -181,13 +181,22 @@
   .legend span { display:flex; align-items:center; gap:8px }
   .dot.sq { border-radius:3px }
   .dot.dia { border-radius:1px; transform:rotate(45deg) scale(.85) }
-  /* sensor dot as HTML (so it can carry a trend badge); same look as before */
-  .sw { position:relative; display:block; width:100%; height:100%; cursor:pointer }
-  .sens { display:block; width:100%; height:100%; border-radius:50%; border:2px solid var(--panel); box-shadow:0 1px 3px #0005 }
-  .sens.tun { border:3px solid var(--ink) }
-  .tr { position:absolute; right:-9px; top:-10px; width:16px; height:16px; border-radius:50%; background:var(--panel);
-        box-shadow:0 0 0 1.5px currentColor, 0 1px 3px #0005; font:700 10px/16px var(--sans); text-align:center; pointer-events:none }
-  .tr.up { color:var(--wl-over) } .tr.down { color:var(--live) }
+  /* sensor pill: [shape · value · trend], one clickable piece. Shape keeps the
+     type (circle = river / road, diamond = canal, ring = underpass); colour = status. */
+  .spill { display:inline-flex; align-items:center; gap:4px; height:20px; padding:0 6px 0 4px; border-radius:10px;
+           background:var(--panel); border:2px solid var(--c); box-shadow:0 1px 3px #0005; cursor:pointer;
+           transform:translate(-50%, -50%); white-space:nowrap; font:700 10px/1 var(--mono); color:var(--ink) }
+  .spill .sh { width:11px; height:11px; flex:none; border-radius:50%; background:var(--c) }
+  .spill .sh.dia { border-radius:1px; transform:rotate(45deg) scale(.82) }
+  .spill .sh.ring { background:var(--panel); box-shadow:inset 0 0 0 3px var(--c) }
+  .spill em { font-style:normal }
+  .spill .t { font-size:10px; min-width:8px; text-align:center }
+  .spill .t.up { color:var(--wl-over) } .spill .t.down { color:var(--live) } .spill .t.flat, .spill .t.na { color:var(--dim) }
+  .spill:hover { box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--c) }
+  @media (pointer: coarse) {
+    .spill { height:26px; padding:0 8px 0 5px; border-radius:13px; font-size:12px; gap:5px }
+    .spill .sh { width:14px; height:14px } .spill .t { font-size:12px }
+  }
   /* inner <i>: Leaflet owns the icon element's own transform for positioning */
   .canal { display:block; width:100%; height:100%; transform:rotate(45deg) scale(.82); border-radius:2px;
            border:2px solid var(--panel); box-shadow:0 1px 3px #0005 }
@@ -366,7 +375,7 @@
         <span><i class="dot sq" style="background:var(--still)"></i><span data-i18n="kStill">Still image or external viewer</span></span>
         <span><i class="dot" style="background:var(--wl-high)"></i><span data-i18n="kHigh">River high</span></span>
         <span><i class="dot" style="background:var(--wl-over)"></i><span data-i18n="kOver">River over the bank</span></span>
-        <span><i class="dot" style="background:var(--panel);box-shadow:0 0 0 1px var(--line);color:var(--wl-over);font:700 8px/10px var(--sans);text-align:center">▲</i><span data-i18n="kTrend">▲ rising / ▼ falling over the window picked in Highlights</span></span>
+        <span><i class="spill" style="--c:var(--road);transform:none;height:16px;font-size:9px"><i class="sh" style="width:8px;height:8px"></i><em>27</em><b class="t up">▲</b></i><span data-i18n="kTrend">Sensor: colour = status, number = cm, ▲ rising ▼ falling → steady – no history yet</span></span>
         <span><i class="dot dia" style="background:var(--wl-over)"></i><span data-i18n="kCanalCrit">Canal critical (BMA)</span></span>
         <span><i class="dot dia" style="background:var(--alert)"></i><span data-i18n="kCanalAlert">Canal alert (BMA)</span></span>
         <span><i class="dot" style="background:var(--report);border-radius:50% 50% 50% 2px;transform:rotate(-45deg)"></i><span data-i18n="kReport">Resident flood report</span></span>
@@ -497,7 +506,8 @@ const I18N = {
     noPhotoHere: "Photos can only be posted in Thailand.",
     floodHub: "Google Flood Hub forecast ↗",
     trUp: (d, h) => `rising ${d} over ${h} h`, trDown: (d, h) => `falling ${d} over ${h} h`, trFlat: h => `steady over ${h} h`,
-    kTrend: "▲ rising / ▼ falling over the window picked in Highlights",
+    kTrend: "Sensor: colour = status, number = cm, ▲ rising ▼ falling → steady – no history yet",
+    trNone: "no trend yet",
     h24: "24 h", h48: "48 h", bank: "bank", critLine: "critical", trendLoading: "Loading trend…",
     noTrend: "No readings in this period.", noTrendBma: "No history yet. BMA readings are collected every 30 minutes and build up from 26 Sep.",
     trendFail: "Couldn't load the trend.",
@@ -595,7 +605,8 @@ const I18N = {
     noPhotoHere: "ส่งภาพได้เฉพาะในประเทศไทย",
     floodHub: "พยากรณ์จาก Google Flood Hub ↗",
     trUp: (d, h) => `เพิ่มขึ้น ${d} ใน ${h} ชม.`, trDown: (d, h) => `ลดลง ${d} ใน ${h} ชม.`, trFlat: h => `ทรงตัวใน ${h} ชม.`,
-    kTrend: "▲ เพิ่มขึ้น / ▼ ลดลง ตามช่วงเวลาที่เลือกในสรุป",
+    kTrend: "เซนเซอร์: สี = สถานะ ตัวเลข = ซม. ▲ เพิ่ม ▼ ลด → ทรงตัว – ยังไม่มีประวัติ",
+    trNone: "ยังไม่มีแนวโน้ม",
     h24: "24 ชม.", h48: "48 ชม.", bank: "ตลิ่ง", critLine: "วิกฤต", trendLoading: "กำลังโหลดกราฟ…",
     noTrend: "ไม่มีข้อมูลในช่วงนี้", noTrendBma: "ยังไม่มีประวัติ ระบบเก็บค่าจาก กทม. ทุก 30 นาที เริ่มตั้งแต่ 26 ก.ย.",
     trendFail: "โหลดกราฟไม่สำเร็จ",
@@ -1617,14 +1628,16 @@ function renderFlood() {
   // ▲/▼ badge from the Highlights window; steady or unknown gets none (less clutter).
   // eps = change that counts; unit = how to print it; glitch = ignore bigger jumps.
   const trendOf = (delta, eps, unit, glitch) => {
-    if (delta == null || Math.abs(delta) > glitch) return { badge: "", tip: "" };
+    if (delta == null || Math.abs(delta) > glitch) return { cls: "na", glyph: "–", tip: " · " + t("trNone") };
     const txt = unit === "cm" ? `${Math.abs(delta).toFixed(1)} cm` : `${Math.round(Math.abs(delta) * 100)} cm`;
-    if (delta > eps) return { badge: '<b class="tr up">▲</b>', tip: " · " + t("trUp", txt, hlHours) };
-    if (delta < -eps) return { badge: '<b class="tr down">▼</b>', tip: " · " + t("trDown", txt, hlHours) };
-    return { badge: "", tip: " · " + t("trFlat", hlHours) };
+    if (delta > eps) return { cls: "up", glyph: "▲", tip: " · " + t("trUp", txt, hlHours) };
+    if (delta < -eps) return { cls: "down", glyph: "▼", tip: " · " + t("trDown", txt, hlHours) };
+    return { cls: "flat", glyph: "→", tip: " · " + t("trFlat", hlHours) };
   };
-  const dotIcon = (d, fill, badge, cls = "") => L.divIcon({ className: "", iconSize: [d, d],
-    html: `<span class="sw"><i class="sens ${cls}" style="background:${fill}"></i>${badge}</span>` });
+  // the whole pill is the marker, so every part of it opens the sensor
+  const pillIcon = (color, shape, val, tr) => L.divIcon({ className: "", iconSize: [0, 0],
+    html: `<span class="spill" style="--c:${color}"><i class="sh ${shape}"></i>${val != null ? `<em>${val}</em>` : ""}`
+      + `<b class="t ${tr.cls}">${tr.glyph}</b></span>` });
   for (const r of wl.waterlevel_data.data) {
     const st = r.station, lvl = r.situation_level;
     if (!(lvl >= 4) || !st.tele_station_lat) continue;
@@ -1633,8 +1646,8 @@ function renderFlood() {
     let dv = sensorTrend.get(`tw:${st.id}`);
     if (dv == null && hlHours === 1 && r.waterlevel_msl != null && r.waterlevel_msl_previous != null) dv = r.waterlevel_msl - r.waterlevel_msl_previous;
     const tr = trendOf(dv, 0.02, "m", 1);
-    L.marker([st.tele_station_lat, st.tele_station_long], { pane: "sensors",
-      icon: dotIcon(px(lvl === 5 ? 20 : 16), lvl === 5 ? OVER : HIGH, tr.badge) })
+    L.marker([st.tele_station_lat, st.tele_station_long], { pane: "sensors", zIndexOffset: lvl * 100,
+      icon: pillIcon(lvl === 5 ? OVER : HIGH, "", null, tr) })
       .bindTooltip(`${name}: ${lvl === 5 ? t("tipOver") : t("tipHigh")}${tr.tip}`)
       .bindPopup(() => (
         `<b>${esc(name)}</b><br>${esc(bi(r.geocode?.province_name))}<br>`
@@ -1654,14 +1667,13 @@ function renderFlood() {
   const roadAt = latest(roads, r => r.ts), canalAt = latest(canals, r => r.ts);
   const roadStale = !roadAt || !fresh(bkkTime(roadAt));
 
-  const canalIcon = (lvl, badge) => L.divIcon({ className: "", iconSize: lvl === 4 ? [px(19), px(19)] : [px(16), px(16)],
-    html: `<span class="sw"><i class="canal ${lvl === 4 ? "crit" : "alert"}"></i>${badge}</span>` });
+
   for (const c of canals) {
     if (!(c.lvl >= 3) || !fresh(bkkTime(c.ts))) continue;
     c.lvl === 4 ? ccrit++ : calert++;
     const word = c.lvl === 4 ? t("critical") : t("alert");
     const tr = trendOf(sensorTrend.get(c.code), 0.02, "m", 1);
-    L.marker([c.y, c.x], { icon: canalIcon(c.lvl, tr.badge), pane: "sensors" })
+    L.marker([c.y, c.x], { icon: pillIcon(c.lvl === 4 ? OVER : ALERT, "dia", null, tr), pane: "sensors", zIndexOffset: c.lvl * 100 })
       .bindTooltip(`${bi(c)}: ${word}${tr.tip}`)
       .bindPopup(() => `<b>${esc(bi(c))}</b><br>${dot(c.lvl === 4 ? OVER : ALERT)}${esc(word)}<br>`
         + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`
@@ -1673,7 +1685,7 @@ function renderFlood() {
     if (!(r.cm > 0) || !fresh(r.t)) continue;
     wet++;
     const tr = trendOf(sensorTrend.get(r.code), 1, "cm", 100);
-    L.marker([r.y, r.x], { pane: "sensors", icon: dotIcon(px(14 + Math.min(r.cm, 40) / 2.5), ROAD, tr.badge) })
+    L.marker([r.y, r.x], { pane: "sensors", zIndexOffset: Math.round(r.cm), icon: pillIcon(ROAD, "", Math.round(r.cm), tr) })
       .bindTooltip(`${bi(r)}: ${t("tipRoad", r.cm)}${tr.tip}`)
       .bindPopup(() => `<b>${esc(bi(r))}</b><br>${dot(ROAD)}${esc(t("road", r.cm))}<br>`
         + `<span class="reading">${esc(when(r.ts))} · ${t("roadSensor")}</span>`
@@ -1685,7 +1697,7 @@ function renderFlood() {
     if (!wetSides.length) continue;
     tun++;
     const cm = Math.max(...wetSides.map(sd => sd.cm));
-    L.marker([tn.y, tn.x], { pane: "sensors", icon: dotIcon(px(20 + Math.min(cm, 40) / 2.5), ROAD, "", "tun") })
+    L.marker([tn.y, tn.x], { pane: "sensors", zIndexOffset: 900, icon: pillIcon(ROAD, "ring", Math.round(cm), { cls: "na", glyph: "–" }) })
       .bindTooltip(`${bi(tn)}: ${t("tipRoad", cm)}`)
       .bindPopup(() => `<b>${esc(bi(tn))}</b><br>${t("tunnel")}<br><span class="reading">`
         + tn.sides.map(sd => `${esc(sd.dir)}: ${esc(sd.cm)} ${t("cm")} · ${esc(when(sd.ts))}`).join("<br>") + "</span>"
