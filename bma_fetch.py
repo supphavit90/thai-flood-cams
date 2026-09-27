@@ -83,8 +83,7 @@ def canals(path):
 def extra(paths):
     """History that can fill the Mac's gaps, as a bma-ingest payload (stdout):
     - a /Flood page: each underpass's last 24 h (listTunnelSubTranDetaill24hr)
-    - a /Flood/Graph/AllStation snapshot (POSTed for a past time): every road
-      sensor at that moment (waterhistoryList)."""
+    - a /Flood/Graph/AllStation page: every road sensor at one moment (waterhistoryList)."""
     roads, tunnels = [], []
     for path in paths:
         html = open(path, encoding="utf8", errors="replace").read()
@@ -105,24 +104,30 @@ def extra(paths):
     json.dump({"roads": roads, "tunnels": tunnels}, sys.stdout)
 
 
-def missing_slots(state, n):
-    """Up to n half-hour slots in the last 12 h (newest first, skipping the last
-    hour) with no road snapshot yet, as 'dd/mm/yyyy HH:MM|YYYY-MM-DDTHH:MM'."""
+def history(path):
+    """floodbangkok.bangkok.go.th's sensor log (every road sensor, ~every 5-10 min)
+    as a bma-ingest payload. Readings carry their own sensor time (ms epoch)."""
+    bkk, seen, roads = timezone(timedelta(hours=7)), set(), []
+    for r in json.load(open(path, encoding="utf8"))["data"]:
+        code, ts = r.get("sensor_name") or "", r.get("timestamp")
+        if not code.startswith("FL.") or not ts or r.get("value") in (None, ""):
+            continue   # ponytail: underpasses already come with 24 h from the /Flood page
+        key = (code, datetime.fromtimestamp(int(ts) / 1000, bkk).strftime("%Y-%m-%dT%H:%M"))
+        if key not in seen:
+            seen.add(key)
+            roads.append({"code": code, "cm": float(r["value"]), "ts": key[1]})
+    json.dump({"roads": roads}, sys.stdout)
+
+
+def since(state):
+    """Start of the next history pull (UTC): 30 min before the last good one,
+    at most 12 h back."""
+    now = datetime.now(timezone.utc)
     try:
-        have = set(open(state).read().split())
-    except OSError:
-        have = set()
-    now = datetime.now(timezone(timedelta(hours=7)))
-    slot = now.replace(minute=0 if now.minute < 30 else 30, second=0, microsecond=0) - timedelta(hours=1)
-    out = []
-    for _ in range(22):
-        key = slot.strftime("%Y-%m-%dT%H:%M")
-        if key not in have:
-            out.append(f"{slot.strftime('%d/%m/%Y %H:%M')}|{key}")
-            if len(out) >= n:
-                break
-        slot -= timedelta(minutes=30)
-    print("\n".join(out))
+        last = datetime.fromisoformat(open(state).read().strip())
+    except (OSError, ValueError):
+        last = now - timedelta(hours=12)
+    print(max(last - timedelta(minutes=30), now - timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M:%SZ"))
 
 
 def flows(path):
@@ -184,7 +189,9 @@ def main():
 if __name__ == "__main__":
     if sys.argv[1:2] == ["--extra"]:
         extra(sys.argv[2:])
-    elif sys.argv[1:2] == ["--missing-slots"]:
-        missing_slots(sys.argv[2], int(sys.argv[3]))
+    elif sys.argv[1:2] == ["--history"]:
+        history(sys.argv[2])
+    elif sys.argv[1:2] == ["--since"]:
+        since(sys.argv[2])
     else:
         main()
