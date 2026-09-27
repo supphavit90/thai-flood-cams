@@ -491,6 +491,8 @@ const I18N = {
     myLocation: "My location", thisSpot: "This spot", pCanals: "Nearest canal stations (BMA)",
     critical: "critical", alert: "alert", offlineSt: "out of order", tunnel: "Underpass",
     canal: (m, w, c) => `level ${m ?? "–"} m (alert ${w ?? "–"}, critical ${c ?? "–"})`,
+    flow: (q, v) => `flow ${q ?? "–"} m³/s · speed ${v ?? "–"} m/s`, flowRev: "minus = flowing backwards through the gate",
+    flowTip: q => `flow ${q} m³/s`,
     repLayer: "Residents' flood reports", repSrc: "Traffy Fondue (BMA) · every 10 min", repWindow: "Show reports from the last…", kReport: "Resident flood report",
     repTitle: "Resident's flood report", repVia: "Reported on Traffy Fondue, BMA's citizen-report app",
     repNote: (n, h) => ` · ${n} resident flood reports (last ${h} h)`, pReports: "Residents' flood reports within 1 km",
@@ -591,6 +593,8 @@ const I18N = {
     myLocation: "ตำแหน่งของฉัน", thisSpot: "จุดนี้", pCanals: "สถานีวัดระดับน้ำคลองใกล้เคียง (กทม.)",
     critical: "วิกฤต", alert: "เฝ้าระวัง", offlineSt: "ขัดข้อง", tunnel: "อุโมงค์ทางลอด",
     canal: (m, w, c) => `ระดับ ${m ?? "–"} ม. (เฝ้าระวัง ${w ?? "–"}, วิกฤต ${c ?? "–"})`,
+    flow: (q, v) => `อัตราการไหล ${q ?? "–"} ลบ.ม./วินาที · ความเร็ว ${v ?? "–"} ม./วินาที`, flowRev: "ค่าติดลบ = น้ำไหลย้อนผ่านประตูระบายน้ำ",
+    flowTip: q => `ไหล ${q} ลบ.ม./วินาที`,
     repLayer: "แจ้งน้ำท่วมจากประชาชน", repSrc: "Traffy Fondue (กทม.) · ทุก 10 นาที", repWindow: "แสดงเรื่องแจ้งย้อนหลัง…", kReport: "เรื่องแจ้งน้ำท่วม",
     repTitle: "ประชาชนแจ้งน้ำท่วม", repVia: "แจ้งผ่าน Traffy Fondue แอปรับเรื่องของ กทม.",
     repNote: (n, h) => ` · ประชาชนแจ้งน้ำท่วม ${n} เรื่อง (${h} ชม. ล่าสุด)`, pReports: "เรื่องแจ้งน้ำท่วมในรัศมี 1 กม.",
@@ -1614,13 +1618,13 @@ async function loadFlood() {
     const t = bkkTime(r.ts), old = roads.get(r.code);
     if (!old || t > old.t) roads.set(r.code, { th: r.th, en: r.en, y: r.y, x: r.x, cm: r.cm, ts: r.ts, t, tw: old?.tw, code: r.code });
   }
-  floodData = { wl, roads: [...roads.values()], canals: bma?.canals || [], tunnels: bma?.tunnels || [] };
+  floodData = { wl, roads: [...roads.values()], canals: bma?.canals || [], tunnels: bma?.tunnels || [], flows: bma?.flows || [] };
   renderFlood();
   loadTrends();
 }
 function renderFlood() {
   if (!floodData) return;
-  const { wl, roads, canals, tunnels } = floodData;
+  const { wl, roads, canals, tunnels, flows } = floodData;
   FLOOD_KINDS.forEach(k => kindLayer[k].clearLayers());
   let high = 0, over = 0, wet = 0, ccrit = 0, calert = 0, tun = 0;
   const HIGH = css("--wl-high"), OVER = css("--wl-over"), ROAD = css("--road"), ALERT = css("--alert"), EDGE = css("--panel");
@@ -1678,6 +1682,19 @@ function renderFlood() {
       .bindPopup(() => `<b>${esc(bi(c))}</b><br>${dot(c.lvl === 4 ? OVER : ALERT)}${esc(word)}<br>`
         + `<span class="reading">${esc(t("canal", c.m, c.warn, c.crit))}<br>${esc(when(c.ts))} · BMA</span>`
         + trendBox({ type: "bma", codes: [c.code], unit: "m", crit: c.crit })
+        + `<a href="https://weather.bangkok.go.th/KlongMap" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">${t("klong")}</a>`)
+      .addTo(kindLayer.canal);
+  }
+  // ponytail: only 6 flow gauges (gates, a pump station, Chao Phraya at Rama VIII),
+  // so all fresh ones show; colour follows their level vs the bank thresholds
+  for (const f of flows) {
+    if (!fresh(bkkTime(f.ts))) continue;
+    const col = f.m >= f.crit ? OVER : f.m >= f.warn ? ALERT : css("--still"), q = Math.round(f.q);
+    L.marker([f.y, f.x], { pane: "sensors", zIndexOffset: 50, icon: pillIcon(col, "dia", q, { cls: "na", glyph: "m³/s" }) })
+      .bindTooltip(`${bi(f)}: ${t("flowTip", q)}`)
+      .bindPopup(() => `<b>${esc(bi(f))}</b><br>`
+        + `<span class="reading">${esc(t("flow", f.q, f.v))}<br>${esc(t("canal", f.m, f.warn, f.crit))}<br>`
+        + `${f.q < 0 ? esc(t("flowRev")) + "<br>" : ""}${esc(when(f.ts))} · BMA</span><br>`
         + `<a href="https://weather.bangkok.go.th/KlongMap" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">${t("klong")}</a>`)
       .addTo(kindLayer.canal);
   }
