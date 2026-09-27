@@ -80,6 +80,51 @@ def canals(path):
     return out
 
 
+def extra(paths):
+    """History that can fill the Mac's gaps, as a bma-ingest payload (stdout):
+    - a /Flood page: each underpass's last 24 h (listTunnelSubTranDetaill24hr)
+    - a /Flood/Graph/AllStation snapshot (POSTed for a past time): every road
+      sensor at that moment (waterhistoryList)."""
+    roads, tunnels = [], []
+    for path in paths:
+        html = open(path, encoding="utf8", errors="replace").read()
+        try:
+            for r in grab(html, "waterhistoryList"):
+                if r.get("flood_code") and r.get("flood") is not None:
+                    roads.append({"code": r["flood_code"], "cm": r["flood"], "ts": (r.get("site_timestamp") or "")[:16]})
+        except ValueError:
+            pass
+        try:
+            for t in grab(html, "tunnelData"):
+                sides = [{"dir": s.get("tunnel_sub_station_code"), "cm": h.get("flood"), "ts": (h.get("site_timestamp") or "")[:16]}
+                         for s in t.get("listTunnelSubLastDetail") or [] for h in s.get("listTunnelSubTranDetaill24hr") or []]
+                if sides:
+                    tunnels.append({"code": t["tunnel_code"], "sides": sides})
+        except ValueError:
+            pass
+    json.dump({"roads": roads, "tunnels": tunnels}, sys.stdout)
+
+
+def missing_slots(state, n):
+    """Up to n half-hour slots in the last 12 h (newest first, skipping the last
+    hour) with no road snapshot yet, as 'dd/mm/yyyy HH:MM|YYYY-MM-DDTHH:MM'."""
+    try:
+        have = set(open(state).read().split())
+    except OSError:
+        have = set()
+    now = datetime.now(timezone(timedelta(hours=7)))
+    slot = now.replace(minute=0 if now.minute < 30 else 30, second=0, microsecond=0) - timedelta(hours=1)
+    out = []
+    for _ in range(22):
+        key = slot.strftime("%Y-%m-%dT%H:%M")
+        if key not in have:
+            out.append(f"{slot.strftime('%d/%m/%Y %H:%M')}|{key}")
+            if len(out) >= n:
+                break
+        slot -= timedelta(minutes=30)
+    print("\n".join(out))
+
+
 def main():
     # BMA's firewall 403s /Flood now and then while /water still answers (or the
     # other way round). Whatever fails keeps its last good readings - they carry
@@ -112,4 +157,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:2] == ["--extra"]:
+        extra(sys.argv[2:])
+    elif sys.argv[1:2] == ["--missing-slots"]:
+        missing_slots(sys.argv[2], int(sys.argv[3]))
+    else:
+        main()
