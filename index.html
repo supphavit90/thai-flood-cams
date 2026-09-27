@@ -134,6 +134,10 @@
   .key:hover { background:var(--well) }
   .key[aria-expanded="true"], .key.on { border-color:var(--ink) }
   #refreshbtn { padding:0 11px }
+  #winwrap { padding:0 10px; gap:5px; cursor:pointer }
+  #win { border:0; background:transparent; color:inherit; font:inherit; padding:0; cursor:pointer; outline:none }
+  /* phones: search gets its own row so the buttons don't squeeze it */
+  @media (max-width: 480px) { #bar .row { flex-wrap:wrap } #q { flex-basis:100% } #bar .row .key { flex:1 1 auto; justify-content:center } }
   #refreshbtn.busy svg { animation:spin .9s linear infinite }
   @keyframes spin { to { transform:rotate(360deg) } }
   .key .lamp { width:7px; height:7px; border-radius:50%; background:var(--line) }
@@ -151,8 +155,6 @@
   #hlbtn[aria-expanded="true"] .chev { transform:rotate(180deg) }
   #highlights { margin-top:4px; border-top:1px solid var(--line); padding:8px 4px 2px; display:grid; gap:7px;
                 max-height:min(42vh, 360px); overflow:auto }
-  .hlwin { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim) }
-  .hlwin .hours { margin:0 }
   #hlbody { display:grid; gap:7px }
   .hl { display:grid; grid-template-columns:88px 1fr; gap:2px 10px; font-size:12px; line-height:1.4 }
   .hl-k { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); padding-top:2px }
@@ -323,6 +325,7 @@
     <input id="q" type="search" autocomplete="off" data-i18n-ph="search">
     <button class="key" id="wallbtn" data-i18n="wall" data-i18n-title="wallTitle">Wall</button>
     <button class="key" id="filtersbtn" aria-expanded="false" aria-controls="filters"><span class="lamp"></span><span data-i18n="layers">Layers</span></button>
+    <label class="key" id="winwrap" data-i18n-title="winTitle"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><select id="win" data-i18n-aria="winTitle"><option value="1">1 h</option><option value="3">3 h</option><option value="6">6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></label>
     <button class="key" id="refreshbtn" data-i18n-aria="refresh" data-i18n-title="refresh"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
     <button class="key" id="langbtn" lang="th">TH</button>
   </div>
@@ -331,9 +334,6 @@
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
     <span data-i18n="hlBtn">Highlights for this view</span><span class="chev" aria-hidden="true">▾</span></button>
   <div id="highlights" hidden>
-    <div class="hlwin"><span data-i18n="hlOver">Change over</span>
-      <div class="hours" id="hlhours" role="group" data-i18n-aria="hlOver"><button data-h="1">1 h</button><button data-h="2">2 h</button><button data-h="3">3 h</button><button data-h="6">6 h</button><button data-h="12">12 h</button></div>
-    </div>
     <div id="hlbody"></div>
   </div>
   <div id="filters" hidden>
@@ -348,12 +348,9 @@
     <div class="group">
       <h3 data-i18n="hReports">Reports</h3>
       <label class="switch"><input type="checkbox" id="reports" checked><span><span data-i18n="repLayer">Residents' flood reports</span><small data-i18n="repSrc">Traffy Fondue (BMA) · every 10 min</small></span></label>
-      <div class="hours" id="rephours" role="group" data-i18n-aria="repWindow">
-        <button data-h="1">1 h</button><button data-h="3">3 h</button><button data-h="6">6 h</button><button data-h="12">12 h</button><button data-h="24">24 h</button>
-      </div>
       <label class="switch"><input type="checkbox" id="l-hwy" checked><span><span data-i18n="lHwy">Highway flooding</span><small data-i18n="lHwySrc">Dept. of Highways · passable or not · every 30 min</small></span></label>
-      <label class="switch"><input type="checkbox" id="l-events" checked><span><span data-i18n="lEvents">Road flood reports</span><small data-i18n="lEventsSrc">Longdo Traffic (iTIC) · last 6 h · every 10 min</small></span></label>
-      <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · last 48 h</small></span></label>
+      <label class="switch"><input type="checkbox" id="l-events" checked><span><span data-i18n="lEvents">Road flood reports</span><small data-i18n="lEventsSrc">Longdo Traffic (iTIC) · every 10 min</small></span></label>
+      <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · kept 48 h</small></span></label>
     </div>
     <div class="group">
       <h3 data-i18n="hWeather">Weather</h3>
@@ -463,7 +460,8 @@ const I18N = {
     hwyDepth: cm => `Water about ${cm} cm deep`, hwySince: d => `Since ${d}`, hwyBypass: "Detour",
     hwyVia: "Dept. of Highways disaster centre (hdms.doh.go.th)",
     hwyNote: (n, c) => ` · ${n} flooded highway points (${c} impassable)`,
-    lEvents: "Road flood reports", lEventsSrc: "Longdo Traffic (iTIC) · last 6 h · every 10 min",
+    lEvents: "Road flood reports", lEventsSrc: "Longdo Traffic (iTIC) · every 10 min",
+    winTitle: "Time window: hide anything older, and compare trends with this long ago", winOpt: h => `${h} h`, hwyUpd: d => `updated ${d}`,
     kEvent: "Road flood report (Longdo), faded once expired", evVia: "Longdo Traffic road event",
     evTime: (a, b) => `Reported ${a}` + (b ? ` · expected until ${b}` : ""), evOpen: "Open on Longdo Traffic ↗",
     evNote: n => ` · ${n} road flood reports`,
@@ -498,7 +496,7 @@ const I18N = {
     repNote: (n, h) => ` · ${n} resident flood reports (last ${h} h)`, pReports: "Residents' flood reports within 1 km",
     repState: { "รอรับเรื่อง": "Waiting for BMA", "รับเรื่อง": "Accepted", "กำลังดำเนินการ": "BMA working on it",
                 "ส่งต่อ(ใหม่)": "Forwarded", "เสร็จสิ้น": "Resolved" },
-    photosLayer: "Community photos", photosSrc: "Posted by visitors · last 48 h", kPhoto: "Community photo",
+    photosLayer: "Community photos", photosSrc: "Posted by visitors · kept 48 h", kPhoto: "Community photo",
     addPhoto: "Add a photo of flooding here", pPhotos: "Photos within 2 km", photoTitle: "Flood photo",
     composeTitle: "Post a flood photo", captionPh: "What's it like? e.g. knee-deep, road closed (optional)",
     composeHint: "Drag the orange pin to where you took it. Don't include people's faces or licence plates. Photos are public and deleted after 48 hours.",
@@ -565,7 +563,8 @@ const I18N = {
     hwyDepth: cm => `ระดับน้ำประมาณ ${cm} ซม.`, hwySince: d => `ตั้งแต่ ${d}`, hwyBypass: "เส้นทางเลี่ยง",
     hwyVia: "ศูนย์บริหารงานอุบัติภัย กรมทางหลวง (hdms.doh.go.th)",
     hwyNote: (n, c) => ` · ทางหลวงน้ำท่วม ${n} จุด (ผ่านไม่ได้ ${c})`,
-    lEvents: "รายงานน้ำท่วมถนน", lEventsSrc: "Longdo Traffic (iTIC) · 6 ชม. ล่าสุด · ทุก 10 นาที",
+    lEvents: "รายงานน้ำท่วมถนน", lEventsSrc: "Longdo Traffic (iTIC) · ทุก 10 นาที",
+    winTitle: "ช่วงเวลา: ซ่อนข้อมูลที่เก่ากว่านี้ และเทียบแนวโน้มกับเมื่อ … ชม. ก่อน", winOpt: h => `${h} ชม.`, hwyUpd: d => `อัปเดต ${d}`,
     kEvent: "รายงานน้ำท่วมถนน (Longdo) จางลงเมื่อหมดเวลา", evVia: "เหตุการณ์จราจรจาก Longdo Traffic",
     evTime: (a, b) => `แจ้งเมื่อ ${a}` + (b ? ` · คาดว่าถึง ${b}` : ""), evOpen: "เปิดใน Longdo Traffic ↗",
     evNote: n => ` · รายงานน้ำท่วมถนน ${n} จุด`,
@@ -599,7 +598,7 @@ const I18N = {
     repTitle: "ประชาชนแจ้งน้ำท่วม", repVia: "แจ้งผ่าน Traffy Fondue แอปรับเรื่องของ กทม.",
     repNote: (n, h) => ` · ประชาชนแจ้งน้ำท่วม ${n} เรื่อง (${h} ชม. ล่าสุด)`, pReports: "เรื่องแจ้งน้ำท่วมในรัศมี 1 กม.",
     repState: {},
-    photosLayer: "ภาพจากผู้ใช้", photosSrc: "ผู้ใช้ส่งมา · 48 ชม. ล่าสุด", kPhoto: "ภาพจากผู้ใช้",
+    photosLayer: "ภาพจากผู้ใช้", photosSrc: "ผู้ใช้ส่งมา · เก็บไว้ 48 ชม.", kPhoto: "ภาพจากผู้ใช้",
     addPhoto: "ส่งภาพน้ำท่วมตรงนี้", pPhotos: "ภาพในรัศมี 2 กม.", photoTitle: "ภาพน้ำท่วม",
     composeTitle: "ส่งภาพน้ำท่วม", captionPh: "สถานการณ์เป็นอย่างไร เช่น น้ำท่วมถึงเข่า ถนนปิด (ไม่บังคับ)",
     composeHint: "ลากหมุดสีส้มไปยังจุดที่ถ่ายภาพ ไม่ควรมีใบหน้าคนหรือป้ายทะเบียนรถ ภาพจะแสดงต่อสาธารณะและถูกลบหลัง 48 ชั่วโมง",
@@ -903,11 +902,19 @@ function visible() {
 // SVG fills can't take var(), so read the palette at draw time (and redraw on theme change)
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-// orange lamp on "Layers" whenever something is switched away from the default
+// One time window for the whole map (the clock button): anything last updated
+// longer ago is hidden, and the ▲/▼ trends compare with that long ago. Cameras
+// (live) and dams (one report a day) aren't time-filtered.
+const WIN_KEY = "livecam.window", WINS = [1, 3, 6, 12, 24];
+let winH = (() => { try { for (const k of [WIN_KEY, "livecam.repHours"]) { const v = +localStorage.getItem(k); if (WINS.includes(v)) return v; } } catch {} return 6; })();
+const inWin = ms => Date.now() - ms <= winH * 3600e3;
+const tsMs = ts => /[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? Date.parse(ts) : bkkTime(ts);   // ISO, or BMA's Bangkok-local
+// live sensors also stop counting as current after 3 h, whatever the window
+const sensorFresh = ms => Date.now() - ms <= Math.min(3, winH) * 3600e3;
+
 // orange lamp on "Layers" when any switch is away from its default
 const lamp = () => $("#filtersbtn").classList.toggle("on",
-  [...document.querySelectorAll("#filters input[type=checkbox]")].some(b => b.checked !== b.defaultChecked)
-  || (typeof repHours !== "undefined" && repHours !== 24));
+  [...document.querySelectorAll("#filters input[type=checkbox]")].some(b => b.checked !== b.defaultChecked));
 
 const LENS = '<svg viewBox="0 0 16 16"><path d="M2 4.5h2.2l1-1.5h5.6l1 1.5H14a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Zm6 1.8a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4Z"/></svg>';
 const CAM_ICON = {   // colours come from CSS tokens, so they follow the theme with no redraw
@@ -937,11 +944,11 @@ function draw() {
   const onMap = list.filter(c => c.y != null);   // streams with no location aren't shown anywhere
   $("#count").textContent = t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
     + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood, floodOn()) : "")
-    + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), repHours) : "")
-    + (hwy.length && $("#l-hwy").checked ? t("hwyNote", hwy.length, hwy.filter(h => h.closed).length) : "")
-    + (events.length && $("#l-events").checked ? t("evNote", events.filter(e => Date.now() - Date.parse(e.starts) <= 6 * 3600e3).length) : "")
+    + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), winH) : "")
+    + (hwy.length && $("#l-hwy").checked ? t("hwyNote", hwyVisible().length, hwyVisible().filter(h => h.closed).length) : "")
+    + (events.length && $("#l-events").checked ? t("evNote", evVisible().length) : "")
     + (dams.length && $("#l-dam").checked ? t("damNote", dams.filter(d => d.pct >= 80).length) : "")
-    + (rain.length && $("#l-rain").checked ? t("rainNote", rain.length, rain.filter(g => g.mm24 >= 90).length) : "");
+    + (rain.length && $("#l-rain").checked ? t("rainNote", rainVisible().length, rainVisible().filter(g => g.mm24 >= 90).length) : "");
   lamp();
   if (typeof scheduleHighlights === "function") scheduleHighlights();
 }
@@ -1011,7 +1018,7 @@ async function loadPhotos() {
 }
 function renderPhotos() {
   photoLayer.clearLayers();
-  for (const ph of photos)
+  for (const ph of photos.filter(ph => inWin(Date.parse(ph.created_at))))
     L.marker([ph.lat, ph.lon], { zIndexOffset: 500, riseOnHover: true,
       icon: L.divIcon({ className: "", iconSize: [38, 38],
         html: `<div class="photo-pin"><img src="${esc(photoUrl(ph, true))}" alt="" loading="lazy"></div>` }) })
@@ -1036,13 +1043,15 @@ async function loadHwy(force) {
     section: x.section_name, km: [x.km_start, x.km_end].filter(Boolean).join("–"), cm: x.flood_level,
     // the dashboard counts an incident as impassable when it has a closure reason
     closed: !!(x.road_closure_text || x.cause_of_roads_closure_id), why: x.road_closure_text,
-    cause: x.cause_of_accident, relief: x.initial_relief, bypass: x.bypass_desc, since: x.start_date }));
+    cause: x.cause_of_accident, relief: x.initial_relief, bypass: x.bypass_desc, since: x.start_date,
+    upd: x.report_date || x.start_date }));   // report_date = latest update on the incident
   hwyAt = Date.now();
   renderHwy(); draw();
 }
+const hwyVisible = () => hwy.filter(h => inWin(Date.parse(h.upd)));
 function renderHwy() {
   hwyLayer.clearLayers();
-  for (const h of hwy) L.marker([h.lat, h.lon], { zIndexOffset: h.closed ? 900 : 800,
+  for (const h of hwyVisible()) L.marker([h.lat, h.lon], { zIndexOffset: h.closed ? 900 : 800,
       icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<i class="hwy${h.closed ? " closed" : ""}">${esc(h.road || "!")}</i>` }) })
     .bindTooltip(`${t("hwyRoad", h.road, "", "")}: ${h.closed ? t("hwyClosed", h.why) : t("hwyOpen")}`, { direction: "top", offset: [0, -10] })
     .bindPopup(() => `<b>${esc(h.title || t("lHwy"))}</b><br>`
@@ -1052,7 +1061,7 @@ function renderHwy() {
       + (h.cause ? `<div style="max-width:260px;margin-top:4px">${esc(h.cause)}</div>` : "")
       + (h.relief ? `<div class="reading" style="max-width:260px;margin-top:4px">${esc(h.relief)}</div>` : "")
       + (h.bypass ? `<div style="max-width:260px;margin-top:4px"><b>${t("hwyBypass")}:</b> ${esc(h.bypass)}</div>` : "")
-      + `<div class="reading" style="margin-top:6px">${h.since ? esc(t("hwySince", when(h.since))) + " · " : ""}${t("hwyVia")}</div>`, { maxWidth: 290 })
+      + `<div class="reading" style="margin-top:6px">${h.since ? esc(t("hwySince", when(h.since))) + " · " : ""}${esc(t("hwyUpd", ago(h.upd)))} · ${t("hwyVia")}</div>`, { maxWidth: 290 })
     .addTo(hwyLayer);
 }
 
@@ -1062,15 +1071,16 @@ const eventLayer = L.markerClusterGroup({ maxClusterRadius: 36, disableClusterin
   iconCreateFunction: cl => L.divIcon({ html: cl.getChildCount(), className: "lev-cluster", iconSize: [26, 26] }) });
 async function loadEvents() {
   if (!photosOn) return;
-  const since = new Date(Date.now() - 12 * 3600e3).toISOString();   // map shows 6 h; highlights can look back 12
+  const since = new Date(Date.now() - 24 * 3600e3).toISOString();   // the longest time window
   const r = await sb(`/rest/v1/road_events?select=*&starts=gte.${since}&order=starts.desc`, { cache: "no-store" });
   if (!r.ok) return;
   events = await r.json();
   renderEvents(); draw();
 }
+const evVisible = () => events.filter(e => inWin(Date.parse(e.starts)));
 function renderEvents() {
   eventLayer.clearLayers();
-  eventLayer.addLayers(events.filter(e => Date.now() - Date.parse(e.starts) <= 6 * 3600e3).map(e => {
+  eventLayer.addLayers(evVisible().map(e => {
     const old = e.stops && Date.parse(e.stops) < Date.now();
     const title = lang === "en" && e.title_en ? e.title_en : e.title, body = lang === "en" && e.body_en ? e.body_en : e.body;
     return L.marker([e.lat, e.lon], { icon: L.divIcon({ className: "", iconSize: [px(19), px(17)], html: `<i class="lev${old ? " old" : ""}"></i>` }) })
@@ -1146,9 +1156,10 @@ function rainBreakdown(h) {
     + `<td style="width:100%"><div class="dampct" style="margin:0"><i style="width:${(h[i] || 0) / max * 100}%;background:var(--rain2)"></i></div></td>`
     + `<td style="padding-left:6px;text-align:right;white-space:nowrap">${h[i] ?? "–"} mm</td></tr>`).join("") + "</table>";
 }
+const rainVisible = () => rain.filter(g => inWin(tsMs(g.ts)));
 function renderRain() {
   rainLayer.clearLayers();
-  rainLayer.addLayers(rain.map(g => L.marker([g.lat, g.lon], { mm: g.mm24, zIndexOffset: Math.round(g.mm24),
+  rainLayer.addLayers(rainVisible().map(g => L.marker([g.lat, g.lon], { mm: g.mm24, zIndexOffset: Math.round(g.mm24),
       icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<i class="rainpill ${rainClass(g.mm24)}">${Math.round(g.mm24)}</i>` }) })
     .bindTooltip(`${bi({ th: g.name_th, en: g.name_en })}: ${g.mm24} mm / 24 h`, { direction: "top", offset: [0, -10] })
     .bindPopup(() => `<b>${esc(bi({ th: g.name_th, en: g.name_en }))}</b><br>${esc(bi({ th: g.province_th, en: g.province_en }))}<br>`
@@ -1166,27 +1177,24 @@ let reports = [];
 const reportLayer = L.markerClusterGroup({ maxClusterRadius: 40, disableClusteringAtZoom: 15, showCoverageOnHover: false,
   iconCreateFunction: cl => L.divIcon({ html: cl.getChildCount(), className: "rep-cluster", iconSize: [30, 30] }) });
 const repIcon = L.divIcon({ className: "", html: '<i class="rep"></i>', iconSize: [13, 13], iconAnchor: [2, 13] });
-// time window (1-24 h) is applied in the browser; the last 24 h are loaded once
-const REPH_KEY = "livecam.repHours";
-let repHours = (() => { try { return [1, 3, 6, 12, 24].includes(+localStorage.getItem(REPH_KEY)) ? +localStorage.getItem(REPH_KEY) : 24; } catch { return 24; } })();
-const repVisible = () => reports.filter(r => Date.now() - Date.parse(r.ts) <= repHours * 3600e3);
-function syncRepHours() {
-  document.querySelectorAll("#rephours button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.h === repHours));
-  $("#rephours").setAttribute("aria-disabled", !$("#reports").checked);
-}
-document.querySelectorAll("#rephours button").forEach(b => b.onclick = () => {
-  repHours = +b.dataset.h;
-  try { localStorage.setItem(REPH_KEY, repHours); } catch {}
-  syncRepHours(); renderReports(); draw(); lamp();
-});
+// the time window is applied in the browser; the last 24 h are loaded once
+const repVisible = () => reports.filter(r => inWin(Date.parse(r.ts)));
 const repStateTxt = st => (lang === "en" && I18N.en.repState[st]) || st || "";
 async function loadReports() {
   if (!photosOn) return;
   const since = new Date(Date.now() - 24 * 3600e3).toISOString();
-  const r = await sb(`/rest/v1/traffy_reports?select=id,ts,lat,lon,body,address,state,photo&ts=gte.${since}`
-    + `&state=neq.${encodeURIComponent("เสร็จสิ้น")}&order=ts.desc&limit=2000`, { cache: "no-store" });
-  if (!r.ok) return;
-  reports = await r.json();
+  // Supabase returns at most 1,000 rows per request; a bad day has several thousand
+  // ponytail: capped at 5 pages (5,000 reports), raise if a day ever tops that
+  const all = [];
+  for (let page = 0; page < 5; page++) {
+    const r = await sb(`/rest/v1/traffy_reports?select=id,ts,lat,lon,body,address,state,photo&ts=gte.${since}`
+      + `&state=neq.${encodeURIComponent("เสร็จสิ้น")}&order=ts.desc,id&limit=1000&offset=${page * 1000}`, { cache: "no-store" });
+    if (!r.ok) { if (!page) return; break; }
+    const rows = await r.json();
+    all.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  reports = all;
   renderReports();
   draw();
 }
@@ -1585,14 +1593,14 @@ const bkkTime = str => Date.parse(String(str).replace(" ", "T").slice(0, 16) + "
 let sensorTrend = new Map();
 async function loadTrends() {
   if (!floodData || !photosOn) return;
-  const fresh = ts => Date.now() - bkkTime(ts) <= 3 * 3600e3;
+  const fresh = ts => sensorFresh(bkkTime(ts));
   const codes = [
-    ...floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4).map(r => `tw:${r.station.id}`),
+    ...floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4 && fresh(r.waterlevel_datetime)).map(r => `tw:${r.station.id}`),
     ...floodData.canals.filter(c => c.lvl >= 3 && fresh(c.ts)).map(c => c.code),
-    ...floodData.roads.filter(r => r.cm > 0 && Date.now() - r.t <= 3 * 3600e3).map(r => r.code),
+    ...floodData.roads.filter(r => r.cm > 0 && sensorFresh(r.t)).map(r => r.code),
   ].filter(Boolean);
   const r = await sb("/rest/v1/rpc/reading_deltas", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ codes, hours: hlHours }) }).catch(() => null);
+    body: JSON.stringify({ codes, hours: winH }) }).catch(() => null);
   const m = new Map();
   if (r?.ok) for (const x of await r.json()) if (x.earlier != null) m.set(x.code, x.latest - x.earlier);
   sensorTrend = m;
@@ -1634,21 +1642,25 @@ function renderFlood() {
   const trendOf = (delta, eps, unit, glitch) => {
     if (delta == null || Math.abs(delta) > glitch) return { cls: "na", glyph: "–", tip: " · " + t("trNone") };
     const txt = unit === "cm" ? `${Math.abs(delta).toFixed(1)} cm` : `${Math.round(Math.abs(delta) * 100)} cm`;
-    if (delta > eps) return { cls: "up", glyph: "▲", tip: " · " + t("trUp", txt, hlHours) };
-    if (delta < -eps) return { cls: "down", glyph: "▼", tip: " · " + t("trDown", txt, hlHours) };
-    return { cls: "flat", glyph: "→", tip: " · " + t("trFlat", hlHours) };
+    if (delta > eps) return { cls: "up", glyph: "▲", tip: " · " + t("trUp", txt, winH) };
+    if (delta < -eps) return { cls: "down", glyph: "▼", tip: " · " + t("trDown", txt, winH) };
+    return { cls: "flat", glyph: "→", tip: " · " + t("trFlat", winH) };
   };
   // the whole pill is the marker, so every part of it opens the sensor
   const pillIcon = (color, shape, val, tr) => L.divIcon({ className: "", iconSize: [0, 0],
     html: `<span class="spill" style="--c:${color}"><i class="sh ${shape}"></i>${val != null ? `<em>${val}</em>` : ""}`
       + `<b class="t ${tr.cls}">${tr.glyph}</b></span>` });
+  // Sensors go quiet without saying so, and feeds can stall for hours (thaiwater
+  // sat on 20:10 readings until the next morning). Anything older than 3 h (or
+  // the time window, if shorter) isn't drawn; the summary line says when readings last came in.
+  const fresh = sensorFresh;
   for (const r of wl.waterlevel_data.data) {
     const st = r.station, lvl = r.situation_level;
-    if (!(lvl >= 4) || !st.tele_station_lat) continue;
+    if (!(lvl >= 4) || !st.tele_station_lat || !fresh(bkkTime(r.waterlevel_datetime))) continue;
     lvl === 5 ? over++ : high++;
     const name = bi(st.tele_station_name);
     let dv = sensorTrend.get(`tw:${st.id}`);
-    if (dv == null && hlHours === 1 && r.waterlevel_msl != null && r.waterlevel_msl_previous != null) dv = r.waterlevel_msl - r.waterlevel_msl_previous;
+    if (dv == null && winH === 1 && r.waterlevel_msl != null && r.waterlevel_msl_previous != null) dv = r.waterlevel_msl - r.waterlevel_msl_previous;
     const tr = trendOf(dv, 0.02, "m", 1);
     L.marker([st.tele_station_lat, st.tele_station_long], { pane: "sensors", zIndexOffset: lvl * 100,
       icon: pillIcon(lvl === 5 ? OVER : HIGH, "", null, tr) })
@@ -1662,10 +1674,6 @@ function renderFlood() {
         + `<a href="${floodHub(st.tele_station_lat, st.tele_station_long)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">${t("floodHub")}</a>`))
       .addTo(kindLayer.river);
   }
-  // Sensors go quiet without saying so, and feeds can stall for hours (thaiwater
-  // sat on 20:10 readings until the next morning). Anything older than MAX_AGE
-  // isn't drawn as current; the summary line says when readings last came in.
-  const MAX_AGE = 3 * 3600e3, fresh = t => Date.now() - t <= MAX_AGE;
   const latest = (list, f) => list.reduce((m, r) => (f(r) || "") > m ? f(r) : m, "");
   const riverAt = latest(wl.waterlevel_data.data, r => r.waterlevel_datetime);
   const roadAt = latest(roads, r => r.ts), canalAt = latest(canals, r => r.ts);
@@ -1770,31 +1778,29 @@ fetch("cameras.json").then(r => r.json()).then(data => {
     if ($("#photos").checked) photoLayer.addTo(map);
     loadPhotos();
     if ($("#reports").checked) reportLayer.addTo(map);
-    loadReports(); syncRepHours();
+    loadReports();
     if ($("#l-rain").checked) rainLayer.addTo(map);
     loadRain();
     if ($("#l-dam").checked) damLayer.addTo(map);
     loadDams();
     if ($("#l-events").checked) eventLayer.addTo(map);
     loadEvents();
-  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#rephours").hidden = true; $("#l-rain").closest("label").hidden = true; $("#l-dam").closest("label").hidden = true; $("#l-events").closest("label").hidden = true; }
+  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#l-rain").closest("label").hidden = true; $("#l-dam").closest("label").hidden = true; $("#l-events").closest("label").hidden = true; }
 }).catch(() => $("#count").textContent = t("noList"));
 
 /* ---------- highlights: an executive summary of what's in the current view ----------
    Only layers that are on and have something inside the map bounds. Trends are
-   the change over the chosen window (1-12 h): rivers, BMA canals and roads via
+   the change over the time window (1-24 h): rivers, BMA canals and roads via
    public.reading_deltas (latest reading vs the one closest to N h earlier, from
    the shared readings history); residents = last N h vs the N h before. */
-const HLH_KEY = "livecam.hlHours";
-let hlHours = (() => { try { return [1, 2, 3, 6, 12].includes(+localStorage.getItem(HLH_KEY)) ? +localStorage.getItem(HLH_KEY) : 1; } catch { return 1; } })();
 const hlCache = new Map();
 async function hlDeltas(codes) {
   if (!photosOn || !codes.length) return new Map();
-  const key = hlHours + "|" + codes.slice().sort().join(",");
+  const key = winH + "|" + codes.slice().sort().join(",");
   const hit = hlCache.get(key);
   if (hit && Date.now() - hit.at < 5 * 60e3) return hit.map;
   const r = await sb("/rest/v1/rpc/reading_deltas", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ codes, hours: hlHours }) }).catch(() => null);
+    body: JSON.stringify({ codes, hours: winH }) }).catch(() => null);
   const map = new Map();
   if (r?.ok) for (const x of await r.json()) if (x.earlier != null) map.set(x.code, x.latest - x.earlier);
   hlCache.set(key, { at: Date.now(), map });
@@ -1813,14 +1819,14 @@ async function updateHighlights() {
   if ($("#highlights").hidden) return;
   const seq = ++hlSeq;
   const b = map.getBounds(), inView = (y, x) => y != null && b.contains([y, x]);
-  const on = id => $(id)?.checked, rows = [], H = hlHours;
+  const on = id => $(id)?.checked, rows = [], H = winH;
   const row = (k, v, extra = "") => rows.push(`<div class="hl"><span class="hl-k">${k}</span><span class="hl-v">${v}${extra}</span></div>`);
-  const fresh = ts => Date.now() - bkkTime(ts) <= 3 * 3600e3;
+  const fresh = ts => sensorFresh(bkkTime(ts));
 
   // what's flagged in view, then one round trip for all their trends
-  const rivers = floodData && on("#l-river") ? floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4 && inView(r.station.tele_station_lat, r.station.tele_station_long)) : [];
+  const rivers = floodData && on("#l-river") ? floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4 && fresh(r.waterlevel_datetime) && inView(r.station.tele_station_lat, r.station.tele_station_long)) : [];
   const canals = floodData && on("#l-canal") ? floodData.canals.filter(c => c.lvl >= 3 && fresh(c.ts) && inView(c.y, c.x)) : [];
-  const roads = floodData && on("#l-road") ? floodData.roads.filter(r => r.cm > 0 && Date.now() - r.t <= 3 * 3600e3 && inView(r.y, r.x)) : [];
+  const roads = floodData && on("#l-road") ? floodData.roads.filter(r => r.cm > 0 && sensorFresh(r.t) && inView(r.y, r.x)) : [];
   const d = await hlDeltas([...rivers.map(r => `tw:${r.station.id}`), ...canals.map(c => c.code), ...roads.map(r => r.code)].filter(Boolean));
   if (seq !== hlSeq || $("#highlights").hidden) return;   // superseded by a newer view
   let missing = 0;
@@ -1851,11 +1857,11 @@ async function updateHighlights() {
     row(t("hlRoads"), esc(t("hlRoadV", roads.length, deep.cm, bi(deep))), trendChips(ds, 0.01));
   }
   if (on("#l-rain") && rain.length) {
-    const gs = rain.filter(g => inView(g.lat, g.lon));
+    const gs = rainVisible().filter(g => inView(g.lat, g.lon));
     if (gs.length) {
       const top = gs.reduce((m, g) => g.mm24 > m.mm24 ? g : m);
       // BMA gauges carry 1/3/6/12 h totals; heaviest over the chosen window where one exists
-      const k = { 1: 0, 3: 1, 6: 2, 12: 3 }[H], win = k == null ? null : gs.filter(g => g.h).reduce((m, g) => (g.h[k] ?? 0) > (m?.h[k] ?? 0) ? g : m, null);
+      const k = { 1: 0, 3: 1, 6: 2, 12: 3, 24: 4 }[H], win = k == null ? null : gs.filter(g => g.h).reduce((m, g) => (g.h[k] ?? 0) > (m?.h[k] ?? 0) ? g : m, null);
       const now = gs.filter(g => (g.mm1 || 0) >= 5).length;
       row(t("hlRain"), esc(t("hlRainV", top.mm24, bi({ th: top.name_th, en: top.name_en }))),
         (win && win.h[k] > 0 ? `<small>${esc(t("hlRainWin", H, win.h[k], bi({ th: win.name_th, en: win.name_en })))}</small>` : "")
@@ -1868,7 +1874,7 @@ async function updateHighlights() {
     if (a || c) row(t("hlReports"), esc(t("hlRepV", a, c, H)));
   }
   if (on("#l-hwy") && hwy.length) {
-    const hs = hwy.filter(h => inView(h.lat, h.lon));
+    const hs = hwyVisible().filter(h => inView(h.lat, h.lon));
     if (hs.length) row(t("hlHwy"), esc(t("hlHwyV", hs.length, hs.filter(h => h.closed).length)));
   }
   if (on("#l-events") && events.length) {
@@ -1887,13 +1893,12 @@ async function updateHighlights() {
     ? rows.join("") + `<div class="hl-none" style="font-size:11px">${esc(note)}</div>`
     : `<div class="hl-none">${t("hlNone")}</div>` + (cv.length ? rows.join("") : "");
 }
-function syncHlHours() { document.querySelectorAll("#hlhours button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.h === hlHours)); }
-document.querySelectorAll("#hlhours button").forEach(b => b.onclick = () => {
-  hlHours = +b.dataset.h;
-  try { localStorage.setItem(HLH_KEY, hlHours); } catch {}
-  syncHlHours(); updateHighlights(); loadTrends();
-});
-syncHlHours();
+$("#win").value = winH;
+$("#win").onchange = e => {
+  winH = +e.target.value;
+  try { localStorage.setItem(WIN_KEY, winH); } catch {}
+  renderPhotos(); renderReports(); renderEvents(); renderHwy(); renderRain(); renderFlood(); draw(); loadTrends();
+};
 // Open by default on a wide screen, closed on a phone (it would cover the map).
 // Once someone opens or closes it, that choice wins.
 const HL_KEY = "livecam.highlights";
@@ -1949,7 +1954,7 @@ $("#l-hwy").onchange = e => { e.target.checked ? hwyLayer.addTo(map) : map.remov
 $("#l-events").onchange = e => { e.target.checked ? eventLayer.addTo(map) : map.removeLayer(eventLayer); draw(); };
 $("#l-dam").onchange = e => { e.target.checked ? damLayer.addTo(map) : map.removeLayer(damLayer); draw(); };
 $("#l-rain").onchange = e => { e.target.checked ? rainLayer.addTo(map) : map.removeLayer(rainLayer); draw(); };
-$("#reports").onchange = e => { e.target.checked ? reportLayer.addTo(map) : map.removeLayer(reportLayer); syncRepHours(); draw(); };
+$("#reports").onchange = e => { e.target.checked ? reportLayer.addTo(map) : map.removeLayer(reportLayer); draw(); };
 $("#photos").onchange = e => { e.target.checked ? photoLayer.addTo(map) : map.removeLayer(photoLayer); lamp(); };
 $("#close").addEventListener("click", endDraft);
 
@@ -1985,6 +1990,7 @@ function applyLang() {
   if (dams.length) renderDams();
   if (events.length) renderEvents();
   if (hwy.length) renderHwy();
+  for (const o of $("#win").options) o.textContent = t("winOpt", o.value);
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
   $("#langbtn").setAttribute("aria-label", t("langAria"));
