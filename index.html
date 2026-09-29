@@ -504,7 +504,7 @@ const I18N = {
     flowTip: q => `flow ${q} m³/s`,
     repLayer: "Residents' flood reports", repSrc: "Traffy Fondue (BMA) · every 10 min", repWindow: "Show reports from the last…", kReport: "Resident flood report",
     repTitle: "Resident's flood report", repVia: "Reported on Traffy Fondue, BMA's citizen-report app",
-    repNote: (n, h) => ` · ${n} resident flood reports (last ${h} h)`, pReports: "Residents' flood reports within 1 km",
+    repNote: (n, h) => ` · ${n} resident flood reports (last ${h} h)`, repStale: w => ` - Traffy hasn't sent new reports since ${w}`, pReports: "Residents' flood reports within 1 km",
     repState: { "รอรับเรื่อง": "Waiting for BMA", "รับเรื่อง": "Accepted", "กำลังดำเนินการ": "BMA working on it",
                 "ส่งต่อ(ใหม่)": "Forwarded", "เสร็จสิ้น": "Resolved" },
     photosLayer: "Community photos", photosSrc: "Posted by visitors · kept 48 h", kPhoto: "Community photo",
@@ -612,7 +612,7 @@ const I18N = {
     flowTip: q => `ไหล ${q} ลบ.ม./วินาที`,
     repLayer: "แจ้งน้ำท่วมจากประชาชน", repSrc: "Traffy Fondue (กทม.) · ทุก 10 นาที", repWindow: "แสดงเรื่องแจ้งย้อนหลัง…", kReport: "เรื่องแจ้งน้ำท่วม",
     repTitle: "ประชาชนแจ้งน้ำท่วม", repVia: "แจ้งผ่าน Traffy Fondue แอปรับเรื่องของ กทม.",
-    repNote: (n, h) => ` · ประชาชนแจ้งน้ำท่วม ${n} เรื่อง (${h} ชม. ล่าสุด)`, pReports: "เรื่องแจ้งน้ำท่วมในรัศมี 1 กม.",
+    repNote: (n, h) => ` · ประชาชนแจ้งน้ำท่วม ${n} เรื่อง (${h} ชม. ล่าสุด)`, repStale: w => ` - Traffy ไม่มีเรื่องแจ้งใหม่ตั้งแต่ ${w}`, pReports: "เรื่องแจ้งน้ำท่วมในรัศมี 1 กม.",
     repState: {},
     photosLayer: "ภาพจากผู้ใช้", photosSrc: "ผู้ใช้ส่งมา · เก็บไว้ 48 ชม.", kPhoto: "ภาพจากผู้ใช้",
     addPhoto: "ส่งภาพน้ำท่วมตรงนี้", pPhotos: "ภาพในรัศมี 2 กม.", photoTitle: "ภาพน้ำท่วม",
@@ -960,7 +960,9 @@ function draw() {
   const onMap = list.filter(c => c.y != null);   // streams with no location aren't shown anywhere
   $("#count").textContent = t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
     + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood, floodOn()) : "")
-    + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), winH) : "")
+    + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), winH)
+       // the feed goes down now and then; an empty map shouldn't read as "no flooding"
+       + (Date.now() - Date.parse(reports[0].ts) > 2 * 3600e3 ? t("repStale", when(reports[0].ts)) : "") : "")
     + (hwy.length && $("#l-hwy").checked ? t("hwyNote", hwyVisible().length, hwyVisible().filter(h => h.closed).length) : "")
     + (events.length && $("#l-events").checked ? t("evNote", evVisible().length) : "")
     + (dams.length && $("#l-dam").checked ? t("damNote", dams.filter(d => d.pct >= 80).length) : "")
