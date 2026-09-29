@@ -519,7 +519,7 @@ const I18N = {
     close: "Close", wallHint: "Cameras in view. Tap one to open it.", backToMap: "Back to map",
     langBtn: "TH", langAria: "เปลี่ยนเป็นภาษาไทย",
     count: (n, l) => `${n} cameras · ${l} live`,
-    floodNote: (f, on) => (on.river ? ` · rivers ${when(f.riverAt)}: ${f.over} over bank, ${f.high} high` : "")
+    floodNote: (f, on) => (on.river && f.riverAt ? ` · rivers ${when(f.riverAt)}: ${f.over} over bank, ${f.high} high` : "")
       + (on.canal && f.canalAt ? ` · canals ${when(f.canalAt)}: ${f.ccrit} critical, ${f.calert} alert` : "")
       + (on.road ? (f.roadStale ? ` · Bangkok road sensors last reported ${when(f.roadAt)}` : ` · ${f.wet} roads flooded (${when(f.roadAt)})`) : "")
       + (on.tunnel && f.tun ? ` · ${f.tun} underpasses flooded` : ""),
@@ -621,7 +621,7 @@ const I18N = {
     close: "ปิด", wallHint: "กล้องในพื้นที่ที่แสดง แตะเพื่อเปิดดู", backToMap: "กลับไปที่แผนที่",
     langBtn: "EN", langAria: "Switch to English",
     count: (n, l) => `กล้อง ${n} · สด ${l}`,
-    floodNote: (f, on) => (on.river ? ` · แม่น้ำ ${when(f.riverAt)}: ล้นตลิ่ง ${f.over} · น้ำมาก ${f.high}` : "")
+    floodNote: (f, on) => (on.river && f.riverAt ? ` · แม่น้ำ ${when(f.riverAt)}: ล้นตลิ่ง ${f.over} · น้ำมาก ${f.high}` : "")
       + (on.canal && f.canalAt ? ` · คลอง ${when(f.canalAt)}: วิกฤต ${f.ccrit} · เฝ้าระวัง ${f.calert}` : "")
       + (on.road ? (f.roadStale ? ` · เซนเซอร์ถนน กทม. รายงานล่าสุด ${when(f.roadAt)}` : ` · ถนนน้ำท่วม ${f.wet} จุด (${when(f.roadAt)})`) : "")
       + (on.tunnel && f.tun ? ` · อุโมงค์น้ำท่วม ${f.tun}` : ""),
@@ -1494,13 +1494,14 @@ async function trendPoints(spec, hours) {
   const since = Date.now() - hours * 3600e3, d0 = bkkDay(since), d1 = bkkDay(Date.now()) + " 23:59";
   const pts = [];
   let ref = spec.crit ?? null;
-  if (spec.type === "river") {
-    const j = await fetch(`${TW}waterlevel_graph?station_type=tele_waterlevel&station_id=${spec.id}&start_date=${d0}&end_date=${encodeURIComponent(d1)}`).then(r => r.json());
-    for (const g of j.data.graph_data) if (g.value != null) pts.push([bkkTime(g.datetime), g.value]);
-    ref = j.data.min_bank ?? null;
+  if (spec.type === "river" && photosOn) {
+    // hourly history saved by thaiwater-sync (thaiwater rate-limits this site's own calls)
+    const r = await sb(`/rest/v1/bma_readings?select=ts,value&code=eq.tw:${spec.id}&ts=gte.${new Date(since).toISOString()}&order=ts`, { cache: "no-store" });
+    if (r.ok) for (const row of await r.json()) pts.push([Date.parse(row.ts), row.value]);
+    ref = spec.bank ?? null;
   }
   if (spec.type === "rain") {
-    const j = await fetch(`${TW}rain_24h_graph?station_id=${spec.id}`).then(r => r.json());
+    const j = await fetch(`${TW}rain_24h_graph?station_id=${spec.id}`).then(r => r.json()).catch(() => ({ data: [] }));
     for (const g of j.data || []) if (g.rainfall_value != null) pts.push([bkkTime(g.rainfall_datetime), g.rainfall_value]);
   }
   if (spec.type === "road" && spec.tw) {
@@ -1608,13 +1609,17 @@ async function loadTrends() {
   renderFlood();
 }
 async function loadFlood() {
-  const [wl, road, bma] = await Promise.all([
-    fetch(TW + "waterlevel_load", { cache: "no-store" }).then(r => r.json()),
-    fetch(TW + "flood_road", { cache: "no-store" }).then(r => r.json()),
+  const [tw, bma] = await Promise.all([
+    // thaiwater rivers + road sensors, copied every 10 min by the thaiwater-snapshot
+    // function: thaiwater rate-limits calls made from this site's pages
+    fetch(SB.url + "/storage/v1/object/public/snapshots/thaiwater.json", { cache: "no-store" }).then(r => r.json()).catch(() => null),
     // BMA's own feed, copied into this repo every 30 min by the Mac job
     // (BMA sends no CORS header). Missing when opened as a file - that's fine.
     fetch("bma.json", { cache: "no-store" }).then(r => r.json()).catch(() => null),
   ]);
+  // either source alone is still worth drawing
+  if (!tw && !bma) throw new Error("no flood data");
+  const wl = tw?.wl || { waterlevel_data: { data: [] } }, road = tw?.road || { data: [] };
   // One road list: thaiwater's copy of the BMA sensors, overridden by BMA's own
   // reading whenever that's newer (thaiwater's copy stalls for hours at a time).
   const roads = new Map();
@@ -1671,7 +1676,7 @@ function renderFlood() {
         + `${lvl === 5 ? dot(OVER) + t("over") : dot(HIGH) + t("high")}<br>`
         + `<span class="reading">${esc(t("capacity", r.storage_percent))}<br>`
         + `${esc(r.diff_wl_bank_text)} ${esc(r.diff_wl_bank)} · ${esc(r.waterlevel_msl)} ${t("msl")}<br>`
-        + `${esc(r.waterlevel_datetime)}</span>` + trendBox({ type: "river", id: st.id })
+        + `${esc(r.waterlevel_datetime)}</span>` + trendBox({ type: "river", id: st.id, bank: st.min_bank })
         + `<a href="${floodHub(st.tele_station_lat, st.tele_station_long)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">${t("floodHub")}</a>`))
       .addTo(kindLayer.river);
   }
