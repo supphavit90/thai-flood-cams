@@ -165,6 +165,12 @@
   .chip.up { background:color-mix(in srgb, var(--wl-over) 16%, var(--panel)); color:var(--wl-over) }
   .chip.down { background:color-mix(in srgb, var(--live) 18%, var(--panel)); color:var(--live) }
   .hl-none { color:var(--dim); font-size:12px }
+  .cp { display:grid; grid-template-columns:1fr auto; gap:0 8px; padding:3px 0; border-top:1px solid var(--line); cursor:pointer }
+  .cp:first-child { border-top:0; padding-top:0 }
+  .cp:hover .cp-n { text-decoration:underline }
+  .cp-v { font:11px var(--mono); text-align:right; white-space:nowrap }
+  .cp-v .up { color:var(--wl-over) } .cp-v .down { color:var(--live) }
+  .cp-v.over { color:var(--wl-over); font-weight:700 }
   #filters { margin-top:6px; border-top:1px solid var(--line); padding:10px 6px 4px;
              display:grid; gap:14px; max-height:min(62vh, 520px); overflow:auto }
   .group h3 { margin:0 0 6px; font-size:10px; font-weight:600; letter-spacing:.12em;
@@ -453,6 +459,11 @@ const I18N = {
     hlHwyV: (n, c) => `${n} flooded points · ${c} impassable`, hlDamV: (n, at, p) => `${n} at 80%+ · fullest ${at} ${p}%`,
     hlCamsV: (n, l) => `${n} in view · ${l} live video`, hlEventsV: (n, a, h) => `${n} in the last ${h} h · ${a} still active`,
     hlTrendNote: h => `Rising / falling = change over the last ${h} h.`,
+    hlNorth: "From the north", cpC2: "Nakhon Sawan (C.2)", cpC13: "Below Chao Phraya Dam, Chai Nat (C.13)", cpC3: "Sing Buri (C.3)",
+    cpC7A: "Ang Thong (C.7A)", cpC35: "Ayutthaya, Ban Pom (C.35)", cpCPY014: "Nonthaburi, Nuan Chawi Bridge", cpC12: "Bangkok, Sam Sen (C.12)",
+    cpR8: "Bangkok, Rama VIII Bridge", cpQ: (q, pct) => `${q} m³/s` + (pct != null ? ` · ${pct}% of channel` : ""),
+    cpBank: cm => cm >= 0 ? `${cm} cm below bank` : `${-cm} cm over bank`,
+    cpNote: h => `Upstream first; tap a row to go there. ▲▼ = change over ${h} h. Water passing Nakhon Sawan and the Chao Phraya Dam reaches Nonthaburi and Bangkok later, so a rise up north is the early warning. Nonthaburi and Bangkok also rise and fall with the tide.`,
     lHwy: "Highway flooding", lHwySrc: "Dept. of Highways · passable or not · every 30 min",
     kHwyClosed: "Highway impassable (Highways Dept)", kHwyOpen: "Highway flooded, passable",
     hwyRoad: (r, sec, km) => `Highway ${r}` + (sec ? ` · ${sec}` : "") + (km ? ` · km ${km}` : ""),
@@ -556,6 +567,11 @@ const I18N = {
     hlHwyV: (n, c) => `น้ำท่วม ${n} จุด · ผ่านไม่ได้ ${c}`, hlDamV: (n, at, p) => `น้ำเกิน 80% ${n} แห่ง · มากสุด ${at} ${p}%`,
     hlCamsV: (n, l) => `${n} ตัวในพื้นที่ · วิดีโอสด ${l}`, hlEventsV: (n, a, h) => `${n} เรื่องใน ${h} ชม. · ยังไม่หมดเวลา ${a}`,
     hlTrendNote: h => `เพิ่ม / ลด = การเปลี่ยนแปลงใน ${h} ชม. ล่าสุด`,
+    hlNorth: "น้ำจากเหนือ", cpC2: "นครสวรรค์ (C.2)", cpC13: "ท้ายเขื่อนเจ้าพระยา ชัยนาท (C.13)", cpC3: "สิงห์บุรี (C.3)",
+    cpC7A: "อ่างทอง (C.7A)", cpC35: "อยุธยา บ้านป้อม (C.35)", cpCPY014: "นนทบุรี สะพานนวลฉวี", cpC12: "กรุงเทพฯ สามเสน (C.12)",
+    cpR8: "กรุงเทพฯ สะพานพระราม 8", cpQ: (q, pct) => `${q} ลบ.ม./วิ` + (pct != null ? ` · ${pct}% ของความจุลำน้ำ` : ""),
+    cpBank: cm => cm >= 0 ? `ต่ำกว่าตลิ่ง ${cm} ซม.` : `ล้นตลิ่ง ${-cm} ซม.`,
+    cpNote: h => `เรียงจากต้นน้ำ แตะเพื่อไปยังจุดนั้น ▲▼ = การเปลี่ยนแปลงใน ${h} ชม. น้ำที่ผ่านนครสวรรค์และเขื่อนเจ้าพระยาจะมาถึงนนทบุรีและกรุงเทพฯ ภายหลัง ระดับที่เพิ่มขึ้นทางเหนือจึงเป็นสัญญาณเตือนล่วงหน้า ระดับน้ำที่นนทบุรีและกรุงเทพฯ ขึ้นลงตามน้ำทะเลหนุนด้วย`,
     lHwy: "น้ำท่วมทางหลวง", lHwySrc: "กรมทางหลวง · ผ่านได้หรือไม่ · ทุก 30 นาที",
     kHwyClosed: "ทางหลวงผ่านไม่ได้ (กรมทางหลวง)", kHwyOpen: "ทางหลวงน้ำท่วม ผ่านได้",
     hwyRoad: (r, sec, km) => `ทางหลวงหมายเลข ${r}` + (sec ? ` · ${sec}` : "") + (km ? ` · กม. ${km}` : ""),
@@ -1812,6 +1828,13 @@ async function hlDeltas(codes) {
   hlCache.set(key, { at: Date.now(), map });
   return map;
 }
+// RID / thaiwater codes on the Chao Phraya, north to south (C.* also report discharge)
+const CP_STATIONS = ["C.2", "C.13", "C.3", "C.7A", "C.35", "CPY014", "C.12"];
+const CP_AREA = L.latLngBounds([13.45, 99.8], [15.9, 100.9]);
+$("#hlbody").addEventListener("click", e => {
+  const el = e.target.closest("[data-ll]");
+  if (el) map.flyTo(el.dataset.ll.split(",").map(Number), 13);
+});
 function trendChips(ds, eps) {
   const up = ds.filter(d => d > eps).length, down = ds.filter(d => d < -eps).length, flat = ds.length - up - down;
   if (!ds.length) return "";
@@ -1833,7 +1856,12 @@ async function updateHighlights() {
   const rivers = floodData && on("#l-river") ? floodData.wl.waterlevel_data.data.filter(r => r.situation_level >= 4 && fresh(r.waterlevel_datetime) && inView(r.station.tele_station_lat, r.station.tele_station_long)) : [];
   const canals = floodData && on("#l-canal") ? floodData.canals.filter(c => c.lvl >= 3 && fresh(c.ts) && inView(c.y, c.x)) : [];
   const roads = floodData && on("#l-road") ? floodData.roads.filter(r => r.cm > 0 && sensorFresh(r.t) && inView(r.y, r.x)) : [];
-  const d = await hlDeltas([...rivers.map(r => `tw:${r.station.id}`), ...canals.map(c => c.code), ...roads.map(r => r.code)].filter(Boolean));
+  // Chao Phraya main stem, upstream first: shown while the view is on the central plains
+  const cpOn = floodData && on("#l-river") && b.intersects(CP_AREA);
+  const byOld = cpOn ? new Map(floodData.wl.waterlevel_data.data.map(r => [r.station.tele_station_oldcode, r])) : new Map();
+  const cp = CP_STATIONS.map(c => byOld.get(c)).filter(r => r && Date.now() - bkkTime(r.waterlevel_datetime) <= 6 * 3600e3);
+  const d = await hlDeltas([...rivers.map(r => `tw:${r.station.id}`), ...canals.map(c => c.code), ...roads.map(r => r.code),
+    ...cp.map(r => r.discharge != null ? `twq:${r.station.id}` : `tw:${r.station.id}`)].filter(Boolean));
   if (seq !== hlSeq || $("#highlights").hidden) return;   // superseded by a newer view
   let missing = 0;
   // a jump of more than 1 m (100 cm for roads) is a sensor glitch, not a trend
@@ -1844,6 +1872,25 @@ async function updateHighlights() {
     return [x, v];
   }).filter(x => x[1] != null && Math.abs(x[1]) <= limit);
 
+  if (cp.length) {
+    const arrow = (v, eps, fmt) => v == null ? "" : v > eps ? ` <b class="up">▲${fmt(v)}</b>` : v < -eps ? ` <b class="down">▼${fmt(-v)}</b>` : " →";
+    const line = (name, ll, val, over, tr) => `<div class="cp" data-ll="${ll}"><span class="cp-n">${esc(name)}</span>`
+      + `<span class="cp-v${over ? " over" : ""}">${esc(val)}${tr}</span></div>`;
+    const rowsHtml = cp.map(r => {
+      const st = r.station, q = r.discharge != null ? Math.round(+r.discharge) : null, ll = `${st.tele_station_lat},${st.tele_station_long}`;
+      if (q != null) {
+        const pct = st.qmax ? Math.round(q / st.qmax * 100) : null;
+        return line(t("cp" + st.tele_station_oldcode.replace(".", "")), ll, t("cpQ", q.toLocaleString(), pct), pct >= 100,
+          arrow(d.get(`twq:${st.id}`), 20, v => Math.round(v).toLocaleString()));
+      }
+      const cm = Math.round((st.min_bank - r.waterlevel_msl) * 100);
+      return line(t("cp" + st.tele_station_oldcode.replace(".", "")), ll, t("cpBank", cm), cm < 0,
+        arrow(d.get(`tw:${st.id}`), 0.02, v => Math.round(v * 100) + " cm"));
+    });
+    const r8 = floodData.flows?.find(f => f.code === "FW.PKG.01");
+    if (r8 && Date.now() - bkkTime(r8.ts) <= 6 * 3600e3) rowsHtml.push(line(t("cpR8"), `${r8.y},${r8.x}`, t("cpQ", Math.round(r8.q).toLocaleString(), null), false, ""));
+    row(t("hlNorth"), rowsHtml.join("") + `<small>${esc(t("cpNote", H))}</small>`);
+  }
   if (rivers.length) {
     const ds = pick(rivers, r => `tw:${r.station.id}`,
       r => H === 1 && r.waterlevel_msl != null && r.waterlevel_msl_previous != null ? r.waterlevel_msl - r.waterlevel_msl_previous : null);
