@@ -87,10 +87,11 @@
   .dampill.high { --c:var(--alert) } .dampill.over { --c:var(--wl-over) }
   @media (pointer: coarse) { .dampill { height:28px; font-size:13px } .dampill svg { width:18px; height:16px } }
   .damflow { display:grid; gap:8px; margin:12px 0 10px }
-  .damflow > div { display:grid; grid-template-columns:1fr auto; gap:0 10px; padding:9px 11px; border-radius:8px; background:var(--well) }
-  .damflow span { font-size:13px; color:var(--dim); grid-column:1 / -1 }
-  .damflow b { font-size:17px; font-weight:700 }
-  .damflow small { font-size:12.5px; color:var(--dim); align-self:end }
+  .damflow { grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)) }
+  .damflow > div { display:grid; gap:2px; padding:9px 11px; border-radius:8px; background:var(--well) }
+  .damflow span { font-size:13px; color:var(--dim) }
+  .damflow b { font-size:19px; font-weight:700 }
+  .trend .ttl { font-size:13px; font-weight:600; color:var(--dim); margin-bottom:4px }
   .damflow .damOut { background:color-mix(in srgb, var(--dam) 18%, var(--panel)) }
   .damflow .damSpill { background:color-mix(in srgb, var(--wl-over) 16%, var(--panel)) }
   .dampct { height:8px; border-radius:4px; background:var(--well); overflow:hidden; margin:6px 0 }
@@ -574,8 +575,8 @@ const I18N = {
     kDam: "Dam, fill = storage (amber 80%+, red over 100%)", damTitle: "Dam",
     damFull: p => `${p}% full`, damLine: (s, c) => `${s} of ${c} million m³`,
     damFlow: (i, r, sp) => `Today: inflow ${i}, released ${r}` + (sp ? `, spillway ${sp}` : "") + " million m³",
-    damOut: "Letting out", damIn: "Flowing in", damSpill: "Over the spillway", mcm: v => `${v} million m³ a day`,
-    perSec: v => `about ${v} m³ per second`, damDay: d => `Daily report for ${d}`,
+    damOut: "Letting out", damIn: "Flowing in", damSpill: "Over the spillway", chPct: "How full (% of capacity)",
+    damDay: d => `Daily report for ${d}`, h168: "7 days", h720: "30 days",
     damNote: n => ` · ${n} major dams 80%+ full`,
     lPlaces: "Shelters and free flood parking", lPlacesSrc: "flood69.peoplesparty.or.th · crowd-sourced list · every 10 min",
     plShelter: "Shelter", plParking: "Free flood parking", plSource: "Source", plSrcLink: "news / post ↗",
@@ -698,8 +699,8 @@ const I18N = {
     kDam: "เขื่อน ระดับสีตามปริมาณน้ำ (ส้ม 80%+ แดง เกิน 100%)", damTitle: "เขื่อน",
     damFull: p => `ปริมาณน้ำ ${p}%`, damLine: (s, c) => `${s} จาก ${c} ล้าน ลบ.ม.`,
     damFlow: (i, r, sp) => `วันนี้: น้ำไหลเข้า ${i} ระบาย ${r}` + (sp ? ` ล้นทางระบาย ${sp}` : "") + " ล้าน ลบ.ม.",
-    damOut: "ระบายน้ำออก", damIn: "น้ำไหลเข้า", damSpill: "ล้นทางระบายน้ำล้น", mcm: v => `${v} ล้าน ลบ.ม./วัน`,
-    perSec: v => `ประมาณ ${v} ลบ.ม./วินาที`, damDay: d => `รายงานประจำวันที่ ${d}`,
+    damOut: "ระบายน้ำออก", damIn: "น้ำไหลเข้า", damSpill: "ล้นทางระบายน้ำล้น", chPct: "ปริมาณน้ำ (% ของความจุ)",
+    damDay: d => `รายงานประจำวันที่ ${d}`, h168: "7 วัน", h720: "30 วัน",
     damNote: n => ` · เขื่อนใหญ่น้ำเกิน 80% ${n} แห่ง`,
     lPlaces: "ที่พักพิงและจุดจอดรถหนีน้ำฟรี", lPlacesSrc: "flood69.peoplesparty.or.th · รายชื่อจากประชาชน · ทุก 10 นาที",
     plShelter: "ที่พักพิง", plParking: "จุดจอดรถหนีน้ำฟรี", plSource: "ที่มา", plSrcLink: "ข่าว / โพสต์ ↗",
@@ -1271,7 +1272,9 @@ function renderDams() {
         // what the dam lets out is what reaches the towns downstream: make it the headline,
         // also as m3/s so it compares with the river flows in "From the north"
         + `<div class="damflow">${[["damOut", d.released], ["damIn", d.inflow], ...(d.spilled ? [["damSpill", d.spilled]] : [])].map(([k, v]) =>
-            `<div class="${k}"><span>${esc(t(k))}</span><b>${esc(t("mcm", n(v)))}</b><small>${esc(t("perSec", Math.round((v || 0) * 1e6 / 86400).toLocaleString()))}</small></div>`).join("")}</div>`
+            `<div class="${k}"><span>${esc(t(k))}</span><b>${Math.round((v || 0) * 1e6 / 86400).toLocaleString()} m³/s</b></div>`).join("")}</div>`
+        + [["pct", "%", "chPct"], ["released", "m3s", "damOut"], ["inflow", "m3s", "damIn"]].map(([field, unit, title]) =>
+            trendBox({ type: "dam", id: d.id, field, unit, ranges: [168, 720], daily: true, title: t(title) })).join("")
         + `<span class="reading">${esc(t("damDay", new Date(d.day + "T00:00:00").toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short" })))} · thaiwater.net</span>`)
       .addTo(damLayer);
   }
@@ -1687,6 +1690,12 @@ async function trendPoints(spec, hours) {
     if (r.ok) for (const row of await r.json()) pts.push([Date.parse(row.ts), row.value]);
     ref = spec.bank ?? null;
   }
+  if (spec.type === "dam" && photosOn) {
+    // one reading a day; MCM/day flows shown as m3/s
+    const r = await sb(`/rest/v1/dam_history?select=day,${spec.field}&id=eq.${spec.id}&day=gte.${bkkDay(since)}&order=day`, { cache: "no-store" });
+    if (r.ok) for (const row of await r.json()) if (row[spec.field] != null)
+      pts.push([Date.parse(row.day + "T12:00:00+07:00"), spec.field === "pct" ? row[spec.field] : row[spec.field] * 1e6 / 86400]);
+  }
   if (spec.type === "rain") {
     const j = await fetch(`${TW}rain_24h_graph?station_id=${spec.id}`).then(r => r.json()).catch(() => ({ data: [] }));
     for (const g of j.data || []) if (g.rainfall_value != null) pts.push([bkkTime(g.rainfall_datetime), g.rainfall_value]);
@@ -1702,17 +1711,18 @@ async function trendPoints(spec, hours) {
   }
   // one value per timestamp (tunnel sides / merged road sources: keep the deeper)
   const by = new Map();
-  for (const [ts, v] of pts) if (ts >= since) by.set(ts, Math.max(v, by.get(ts) ?? -Infinity));
+  for (const [ts, v] of pts) if (ts >= since - (spec.daily ? 864e5 : 0)) by.set(ts, Math.max(v, by.get(ts) ?? -Infinity));
   const out = { pts: [...by].sort((a, b) => a[0] - b[0]), ref };
   trendCache.set(key, out);
   setTimeout(() => trendCache.delete(key), 10 * 60e3);
   return out;
 }
-async function mountTrend(box, hours = 24, popup = box._popup) {
+async function mountTrend(box, hours, popup = box._popup) {
   box._popup = popup;
-  const spec = JSON.parse(box.dataset.spec);
-  box.innerHTML = `<div class="th"><span class="lbl"></span><span class="seg2">`
-    + [24, 48].map(h => `<button data-h="${h}" aria-pressed="${h === hours}">${t("h" + h)}</button>`).join("") + `</span></div>`
+  const spec = JSON.parse(box.dataset.spec), ranges = spec.ranges || [24, 48];   // hours; dams use 7 / 30 days
+  if (!ranges.includes(hours)) hours = ranges[0];
+  box.innerHTML = (spec.title ? `<div class="ttl">${esc(spec.title)}</div>` : "") + `<div class="th"><span class="lbl"></span><span class="seg2">`
+    + ranges.map(h => `<button data-h="${h}" aria-pressed="${h === hours}">${t("h" + h)}</button>`).join("") + `</span></div>`
     + `<div class="msg">${t("trendLoading")}</div>`;
   box.querySelectorAll("[data-h]").forEach(b => b.onclick = e => { L.DomEvent.stopPropagation(e); mountTrend(box, +b.dataset.h); });
   let data;
@@ -1724,19 +1734,22 @@ async function mountTrend(box, hours = 24, popup = box._popup) {
   // as wide as its box (the side panel is wider than the old popup), a bit taller when wide
   const W = Math.max(260, Math.round(box.clientWidth) || 260), H = Math.round(Math.min(170, Math.max(96, W * 0.42))), L0 = 36, B = 16, T = 6;
   const unit = spec.unit || "m", bars = spec.type === "rain";
-  const fmtV = v => unit === "mm" ? `${(+v).toFixed(1)} ${t("mmh")}` : `${(+v).toFixed(unit === "cm" ? 1 : 2)} ${unit === "cm" ? t("cm") : "m"}`;
+  const fmtV = v => unit === "mm" ? `${(+v).toFixed(1)} ${t("mmh")}` : unit === "%" ? `${(+v).toFixed(1)}%`
+    : unit === "m3s" ? `${Math.round(v).toLocaleString()} m³/s` : `${(+v).toFixed(unit === "cm" ? 1 : 2)} ${unit === "cm" ? t("cm") : "m"}`;
+  const zeroBase = unit === "cm" || unit === "m3s" || bars;   // depths and flows start from 0
   const vals = pts.map(p => p[1]).concat(ref != null ? [ref] : []);
   let lo = Math.min(...vals), hi = Math.max(...vals);
-  if (unit === "cm" || bars) lo = Math.min(lo, 0);
+  if (zeroBase) lo = Math.min(lo, 0);
   if (hi - lo < 1e-6) { hi += 1; lo -= unit === "cm" ? 0 : 1; }
-  const pad = (hi - lo) * .08; hi += pad; if (unit !== "cm" && !bars) lo -= pad;
+  const pad = (hi - lo) * .08; hi += pad; if (!zeroBase) lo -= pad;
   const t0 = pts[0][0], t1 = Math.max(pts.at(-1)[0], t0 + 1);
   const x = ts => L0 + (W - L0) * (ts - t0) / (t1 - t0), y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
   // dates whenever the chart spans more than one Bangkok day - otherwise
   // "14:10 ... 13:35" reads as time running backwards
   const multiDay = bkkDay(t0) !== bkkDay(t1);
   const hm = ts => new Date(ts).toLocaleString(lang === "th" ? "th-TH" : "en-GB",
-    { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", ...(multiDay ? { day: "numeric", month: "short" } : {}) });
+    spec.daily ? { timeZone: "Asia/Bangkok", day: "numeric", month: "short" }
+      : { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", ...(multiDay ? { day: "numeric", month: "short" } : {}) });
   // break the line where readings stop (sensor offline, feeds switching), rather
   // than drawing a slope through hours with no data
   const steps = pts.slice(1).map((p, i) => p[0] - pts[i][0]).sort((a, b) => a - b);
@@ -1756,7 +1769,7 @@ async function mountTrend(box, hours = 24, popup = box._popup) {
       : `<path class="area" d="${area}"/>${refSvg}<path class="ln" d="${line}"/>`)
     + segs.filter(sg => sg.length === 1).map(sg => `<circle class="ln" r="1.5" cx="${x(sg[0][0])}" cy="${y(sg[0][1])}"/>`).join("")
     + `<text class="ax" x="${L0 - 4}" y="${y(hi - pad) + 3}" text-anchor="end">${fmtV(hi - pad).split(" ")[0]}</text>`
-    + `<text class="ax" x="${L0 - 4}" y="${y(unit === "cm" || bars ? lo : lo + pad) + 3}" text-anchor="end">${fmtV(unit === "cm" || bars ? lo : lo + pad).split(" ")[0]}</text>`
+    + `<text class="ax" x="${L0 - 4}" y="${y(zeroBase ? lo : lo + pad) + 3}" text-anchor="end">${fmtV(zeroBase ? lo : lo + pad).split(" ")[0]}</text>`
     + `<text class="ax" x="${L0}" y="${H - 2}">${hm(t0)}</text><text class="ax" x="${W}" y="${H - 2}" text-anchor="end">${hm(t1)}</text>`
     + `<line class="cross" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="pt" r="4" visibility="hidden"/></svg>`;
   const svg = box.querySelector("svg"), lbl = box.querySelector(".lbl"), cross = svg.querySelector(".cross"), dot = svg.querySelector(".pt");
@@ -1805,7 +1818,7 @@ map.on("popupopen", e => {
       }
     });
   }
-  box.querySelectorAll(".trend").forEach(b => mountTrend(b, 24, null));
+  box.querySelectorAll(".trend").forEach(b => mountTrend(b, 0, null));
   if (ll) {
     cleanup = nearCams(box, ll.lat, ll.lng);   // stops the thumbnail streams when the panel moves on
     const more = document.createElement("div");
