@@ -458,25 +458,6 @@
       <div id="src"></div>
     </div>
     <div class="group">
-      <h3 data-i18n="hKey">Key</h3>
-      <div class="legend">
-        <span><i class="dot sq" style="background:var(--live)"></i><span data-i18n="kLive">Live video</span></span>
-        <span><i class="dot sq" style="background:var(--still)"></i><span data-i18n="kStill">Still image or external viewer</span></span>
-        <span><i class="dot" style="background:var(--wl-high)"></i><span data-i18n="kHigh">River high</span></span>
-        <span><i class="dot" style="background:var(--wl-over)"></i><span data-i18n="kOver">River over the bank</span></span>
-        <span><i class="spill" style="--c:var(--road);transform:none;height:16px;font-size:9px"><i class="sh" style="width:8px;height:8px"></i><em>27</em><b class="t up">▲</b></i><span data-i18n="kTrend">Sensor: colour = status, number = cm, ▲ rising ▼ falling → steady – no history yet</span></span>
-        <span><i class="dot dia" style="background:var(--wl-over)"></i><span data-i18n="kCanalCrit">Canal critical (BMA)</span></span>
-        <span><i class="dot dia" style="background:var(--alert)"></i><span data-i18n="kCanalAlert">Canal alert (BMA)</span></span>
-        <span><i class="dot" style="background:var(--report);border-radius:50% 50% 50% 2px;transform:rotate(-45deg)"></i><span data-i18n="kReport">Resident flood report</span></span>
-        <span><i class="dot sq" style="background:var(--well);box-shadow:0 0 0 1.5px var(--accent)"></i><span data-i18n="kPhoto">Community photo</span></span>
-        <span><i class="dam high" style="width:9px;height:12px;display:inline-block"><i style="height:85%"></i></i><span data-i18n="kDam">Dam, fill = storage (amber 80%+, red over 100%)</span></span>
-        <span><i class="rainpill r1" style="transform:none;min-width:22px;height:14px;font-size:9px">50</i><span data-i18n="kRain1">Heavy rain, 35–90 mm / 24 h</span></span>
-        <span><i class="rainpill r2" style="transform:none;min-width:22px;height:14px;font-size:9px">120</i><span data-i18n="kRain2">Very heavy rain, 90 mm+ / 24 h</span></span>
-        <span><i class="hwy closed" style="transform:none;min-width:20px;height:13px;font-size:8px">24</i><span data-i18n="kHwyClosed">Highway impassable (Highways Dept)</span></span>
-        <span><i class="hwy" style="transform:none;min-width:20px;height:13px;font-size:8px">224</i><span data-i18n="kHwyOpen">Highway flooded, passable</span></span>
-        <span><i class="lev" style="width:11px;height:10px;display:inline-block"></i><span data-i18n="kEvent">Road flood report (Longdo), faded once expired</span></span>
-        <span><i class="dot" style="background:var(--road)"></i><span data-i18n="kRoad">Road flooded, sized by cm</span></span>
-      </div>
       <p class="reading" style="margin:10px 0 0" data-i18n="areaHint">Long-press the map (right-click on a computer) to see readings and cameras around that spot.</p>
     </div>
     <div class="group"><button class="key" id="rand" data-i18n="random">Show a random camera</button></div>
@@ -2343,7 +2324,7 @@ function renderKey() {
     [pill("--road", "", "20", ["down", "▼"]), "kRoadK"], [pill("--road", "ring", "15", ["na", "–"]), "kTunnel"],
     [`<i class="rainpill r2">120</i>`, "kRainK"], [`<span class="dampill high">${DAM_SVG}87%</span>`, "kDamK"],
     [box(13, 13, '<i class="rep"></i>'), "kRep"], [`<i class="hwy closed">31</i>`, "kHwy"], [box(19, 17, '<i class="lev"></i>'), "kEv"],
-    [box(20, 20, '<i class="plc sh">⌂</i>'), "kSh"], [box(20, 20, '<i class="plc">P</i>'), "kPk"], [box(22, 22, LENS, "cam live"), "kCam"],
+    [box(20, 20, '<i class="plc sh">⌂</i>'), "kSh"], [box(20, 20, '<i class="plc">P</i>'), "kPk"], [box(22, 22, LENS, "cam live"), "kCam"], [box(22, 22, "", "photo-pin"), "kPhoto"],
   ];
   $("#keymap").innerHTML = items.map(([ic, k]) => `<li><span class="ic">${ic}</span><span>${esc(t(k))}</span></li>`).join("")
     + `<li><span class="ic"></span><span>${esc(t("kTrendK"))}</span></li>`;
