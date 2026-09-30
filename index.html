@@ -86,6 +86,13 @@
   .dampill svg { width:16px; height:14px; color:var(--c); flex:none }
   .dampill.high { --c:var(--alert) } .dampill.over { --c:var(--wl-over) }
   @media (pointer: coarse) { .dampill { height:28px; font-size:13px } .dampill svg { width:18px; height:16px } }
+  .damflow { display:grid; gap:8px; margin:12px 0 10px }
+  .damflow > div { display:grid; grid-template-columns:1fr auto; gap:0 10px; padding:9px 11px; border-radius:8px; background:var(--well) }
+  .damflow span { font-size:13px; color:var(--dim); grid-column:1 / -1 }
+  .damflow b { font-size:17px; font-weight:700 }
+  .damflow small { font-size:12.5px; color:var(--dim); align-self:end }
+  .damflow .damOut { background:color-mix(in srgb, var(--dam) 18%, var(--panel)) }
+  .damflow .damSpill { background:color-mix(in srgb, var(--wl-over) 16%, var(--panel)) }
   .dampct { height:8px; border-radius:4px; background:var(--well); overflow:hidden; margin:6px 0 }
   .dampct i { display:block; height:100%; background:var(--dam) }
   .dampct.high i { background:var(--alert) } .dampct.over i { background:var(--wl-over) }
@@ -567,6 +574,8 @@ const I18N = {
     kDam: "Dam, fill = storage (amber 80%+, red over 100%)", damTitle: "Dam",
     damFull: p => `${p}% full`, damLine: (s, c) => `${s} of ${c} million m³`,
     damFlow: (i, r, sp) => `Today: inflow ${i}, released ${r}` + (sp ? `, spillway ${sp}` : "") + " million m³",
+    damOut: "Letting out", damIn: "Flowing in", damSpill: "Over the spillway", mcm: v => `${v} million m³ a day`,
+    perSec: v => `about ${v} m³ per second`, damDay: d => `Daily report for ${d}`,
     damNote: n => ` · ${n} major dams 80%+ full`,
     lPlaces: "Shelters and free flood parking", lPlacesSrc: "flood69.peoplesparty.or.th · crowd-sourced list · every 10 min",
     plShelter: "Shelter", plParking: "Free flood parking", plSource: "Source", plSrcLink: "news / post ↗",
@@ -689,6 +698,8 @@ const I18N = {
     kDam: "เขื่อน ระดับสีตามปริมาณน้ำ (ส้ม 80%+ แดง เกิน 100%)", damTitle: "เขื่อน",
     damFull: p => `ปริมาณน้ำ ${p}%`, damLine: (s, c) => `${s} จาก ${c} ล้าน ลบ.ม.`,
     damFlow: (i, r, sp) => `วันนี้: น้ำไหลเข้า ${i} ระบาย ${r}` + (sp ? ` ล้นทางระบาย ${sp}` : "") + " ล้าน ลบ.ม.",
+    damOut: "ระบายน้ำออก", damIn: "น้ำไหลเข้า", damSpill: "ล้นทางระบายน้ำล้น", mcm: v => `${v} ล้าน ลบ.ม./วัน`,
+    perSec: v => `ประมาณ ${v} ลบ.ม./วินาที`, damDay: d => `รายงานประจำวันที่ ${d}`,
     damNote: n => ` · เขื่อนใหญ่น้ำเกิน 80% ${n} แห่ง`,
     lPlaces: "ที่พักพิงและจุดจอดรถหนีน้ำฟรี", lPlacesSrc: "flood69.peoplesparty.or.th · รายชื่อจากประชาชน · ทุก 10 นาที",
     plShelter: "ที่พักพิง", plParking: "จุดจอดรถหนีน้ำฟรี", plSource: "ที่มา", plSrcLink: "ข่าว / โพสต์ ↗",
@@ -1256,9 +1267,12 @@ function renderDams() {
       .bindPopup(() => `<b>${esc(name)}</b><br>${t("damTitle")}`
         + `<div class="dampct ${lv}"><i style="width:${Math.min(100, d.pct || 0)}%"></i></div>`
         + `<b>${esc(t("damFull", n(d.pct)))}</b><br>`
-        + `<span class="reading">${esc(t("damLine", n(d.storage), n(d.capacity)))}<br>`
-        + `${esc(t("damFlow", n(d.inflow), n(d.released), d.spilled ? n(d.spilled) : 0))}<br>`
-        + `${esc(new Date(d.day + "T00:00:00").toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short" }))} · thaiwater.net</span>`)
+        + `<span class="reading">${esc(t("damLine", n(d.storage), n(d.capacity)))}</span>`
+        // what the dam lets out is what reaches the towns downstream: make it the headline,
+        // also as m3/s so it compares with the river flows in "From the north"
+        + `<div class="damflow">${[["damOut", d.released], ["damIn", d.inflow], ...(d.spilled ? [["damSpill", d.spilled]] : [])].map(([k, v]) =>
+            `<div class="${k}"><span>${esc(t(k))}</span><b>${esc(t("mcm", n(v)))}</b><small>${esc(t("perSec", Math.round((v || 0) * 1e6 / 86400).toLocaleString()))}</small></div>`).join("")}</div>`
+        + `<span class="reading">${esc(t("damDay", new Date(d.day + "T00:00:00").toLocaleDateString(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short" })))} · thaiwater.net</span>`)
       .addTo(damLayer);
   }
 }
