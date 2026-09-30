@@ -92,6 +92,16 @@
   .lev { display:block; width:100%; height:100%; background:var(--road); clip-path:polygon(50% 0, 100% 100%, 0 100%);
          filter:drop-shadow(0 0 1px var(--panel)) drop-shadow(0 1px 2px #0006) }
   .lev.old { opacity:.45 }
+  .plc { display:grid; place-items:center; width:100%; height:100%; border-radius:5px; background:var(--ink); color:var(--bg);
+         border:2px solid var(--panel); box-shadow:var(--shadow); font:700 11px/1 var(--mono); box-sizing:border-box }
+  .plc.sh { background:var(--live); color:#fff; font-size:13px }
+  .plc-cluster { display:grid; place-items:center; border-radius:6px; background:var(--live); color:#fff;
+                 border:2px solid var(--panel); box-shadow:var(--shadow); font:500 11px/1 var(--mono) }
+  /* marker details shown in the side panel */
+  #p-place.detail { display:block; font-size:13px; line-height:1.5 }
+  #p-place.detail a { color:var(--ink); text-underline-offset:3px }
+  #p-place.detail .trend { width:100% }
+  #p-place.detail .rep-photo { max-width:100% }
   .lev-cluster { display:grid; place-items:center; border-radius:6px; background:var(--road); color:#fff;
                  border:2px solid var(--panel); box-shadow:var(--shadow); font:500 11px/1 var(--mono) }
   .rainpill { display:inline-grid; place-items:center; min-width:28px; height:18px; padding:0 5px; border-radius:9px;
@@ -312,6 +322,7 @@
     #panel { width:100%; height:66%; top:auto; bottom:0; border-left:0; border-top:1px solid var(--line);
              border-radius:14px 14px 0 0; transform:translateY(105%); padding-top:0 }
     #panel.open { transform:none }
+    body.sheet #count, body.sheet #hlbtn, body.sheet #highlights { display:none !important }
     .grab { display:block; width:36px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0 }
     #panel header { padding-top:10px }
     .legend { grid-template-columns:1fr }
@@ -357,6 +368,7 @@
       <label class="switch"><input type="checkbox" id="l-hwy" checked><span><span data-i18n="lHwy">Highway flooding</span><small data-i18n="lHwySrc">Dept. of Highways · passable or not · every 30 min</small></span></label>
       <label class="switch"><input type="checkbox" id="l-events" checked><span><span data-i18n="lEvents">Road flood reports</span><small data-i18n="lEventsSrc">Longdo Traffic (iTIC) · every 10 min</small></span></label>
       <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · kept 48 h</small></span></label>
+      <label class="switch"><input type="checkbox" id="l-places" checked><span><span data-i18n="lPlaces">Shelters and free flood parking</span><small data-i18n="lPlacesSrc">flood69.peoplesparty.or.th · crowd-sourced list · every 10 min</small></span></label>
     </div>
     <div class="group">
       <h3 data-i18n="hWeather">Weather</h3>
@@ -483,6 +495,12 @@ const I18N = {
     damFull: p => `${p}% full`, damLine: (s, c) => `${s} of ${c} million m³`,
     damFlow: (i, r, sp) => `Today: inflow ${i}, released ${r}` + (sp ? `, spillway ${sp}` : "") + " million m³",
     damNote: n => ` · ${n} major dams 80%+ full`,
+    lPlaces: "Shelters and free flood parking", lPlacesSrc: "flood69.peoplesparty.or.th · crowd-sourced list · every 10 min",
+    plShelter: "Shelter", plParking: "Free flood parking", plSource: "Source", plSrcLink: "news / post ↗",
+    plUpdated: a => `Listed or updated ${a}`, plMaps: "Open in Google Maps ↗", plStatus: (v, n) => `reported ${v}${n ? ` by ${n}` : ""}`,
+    plVia: "From the People's Party flood site's crowd-sourced list (flood69.peoplesparty.or.th). Call ahead before you go.",
+    plNote: (s, p) => ` · ${s} shelters, ${p} free parking spots`, hlPlaces: "Shelters", hlPlacesV: (s, p) => `${s} shelters · ${p} free parking spots in view`,
+    hlWarn: "Warnings", hlWarnNote: "Official alerts from thaiwater.net, all of Thailand",
     lRain: "Heavy rain, last 24 h", lRainSrc: "thaiwater.net + BMA rain gauges · 35 mm or more",
     kRain1: "Heavy rain, 35–90 mm / 24 h", kRain2: "Very heavy rain, 90 mm+ / 24 h",
     rainTitle: "Rain gauge", rain24: mm => `${mm} mm in the last 24 h`, rain1: mm => `${mm} mm in the last hour`,
@@ -591,6 +609,12 @@ const I18N = {
     damFull: p => `ปริมาณน้ำ ${p}%`, damLine: (s, c) => `${s} จาก ${c} ล้าน ลบ.ม.`,
     damFlow: (i, r, sp) => `วันนี้: น้ำไหลเข้า ${i} ระบาย ${r}` + (sp ? ` ล้นทางระบาย ${sp}` : "") + " ล้าน ลบ.ม.",
     damNote: n => ` · เขื่อนใหญ่น้ำเกิน 80% ${n} แห่ง`,
+    lPlaces: "ที่พักพิงและจุดจอดรถหนีน้ำฟรี", lPlacesSrc: "flood69.peoplesparty.or.th · รายชื่อจากประชาชน · ทุก 10 นาที",
+    plShelter: "ที่พักพิง", plParking: "จุดจอดรถหนีน้ำฟรี", plSource: "ที่มา", plSrcLink: "ข่าว / โพสต์ ↗",
+    plUpdated: a => `เพิ่มหรือแก้ไข ${a}`, plMaps: "เปิดใน Google Maps ↗", plStatus: (v, n) => `แจ้งว่า ${({ open: "เปิด", full: "เต็ม", closed: "ปิด" })[v] || v}${n ? ` (${n} คน)` : ""}`,
+    plVia: "จากรายชื่อที่ประชาชนช่วยกันแจ้งในเว็บติดตามน้ำท่วมของพรรคประชาชน (flood69.peoplesparty.or.th) โปรดโทรสอบถามก่อนเดินทาง",
+    plNote: (s, p) => ` · ที่พักพิง ${s} แห่ง จุดจอดรถฟรี ${p} แห่ง`, hlPlaces: "ที่พักพิง", hlPlacesV: (s, p) => `ที่พักพิง ${s} · จุดจอดรถฟรี ${p} ในแผนที่นี้`,
+    hlWarn: "คำเตือน", hlWarnNote: "ประกาศเตือนจาก thaiwater.net ทั่วประเทศ",
     lRain: "ฝนตกหนัก 24 ชม. ล่าสุด", lRainSrc: "สถานีวัดฝน thaiwater.net และ กทม. · 35 มม. ขึ้นไป",
     kRain1: "ฝนตกหนัก 35–90 มม. / 24 ชม.", kRain2: "ฝนตกหนักมาก 90 มม. ขึ้นไป / 24 ชม.",
     rainTitle: "สถานีวัดฝน", rain24: mm => `ฝน ${mm} มม. ใน 24 ชม.`, rain1: mm => `ฝน ${mm} มม. ในชั่วโมงล่าสุด`,
@@ -966,6 +990,7 @@ function draw() {
     + (hwy.length && $("#l-hwy").checked ? t("hwyNote", hwyVisible().length, hwyVisible().filter(h => h.closed).length) : "")
     + (events.length && $("#l-events").checked ? t("evNote", evVisible().length) : "")
     + (dams.length && $("#l-dam").checked ? t("damNote", dams.filter(d => d.pct >= 80).length) : "")
+    + (places.length && $("#l-places").checked ? t("plNote", places.filter(p => p.category === "shelter").length, places.filter(p => p.category !== "shelter").length) : "")
     + (rain.length && $("#l-rain").checked ? t("rainNote", rainVisible().length, rainVisible().filter(g => g.mm24 >= 90).length) : "");
   lamp();
   if (typeof scheduleHighlights === "function") scheduleHighlights();
@@ -1142,6 +1167,36 @@ function renderDams() {
   }
 }
 
+/* ---------- shelters & free flood parking (flood69.peoplesparty.or.th via snapshots/places.json) ----------
+   A crowd-sourced list kept by the People's Party flood site, copied every 10 min by
+   the thaiwater-snapshot function (their API sends no CORS header). Not time-filtered:
+   a shelter stays on the map until it's taken off their list. */
+let places = [];
+const placeLayer = L.markerClusterGroup({ maxClusterRadius: 36, disableClusteringAtZoom: 13, showCoverageOnHover: false,
+  iconCreateFunction: cl => L.divIcon({ html: cl.getChildCount(), className: "plc-cluster", iconSize: [26, 26] }) });
+async function loadPlaces() {
+  const r = await fetch(SB.url + "/storage/v1/object/public/snapshots/places.json", { cache: "no-store" }).catch(() => null);
+  if (!r?.ok) return;
+  places = (await r.json()).places || [];
+  renderPlaces(); draw();
+}
+function renderPlaces() {
+  placeLayer.clearLayers();
+  placeLayer.addLayers(places.map(p => {
+    const sh = p.category === "shelter", kind = sh ? t("plShelter") : t("plParking");
+    const src = /^https?:\/\//.test(p.source) ? `<a href="${esc(p.source)}" target="_blank" rel="noopener">${t("plSrcLink")}</a>` : esc(p.source);
+    return L.marker([p.lat, p.lon], { zIndexOffset: 300,
+        icon: L.divIcon({ className: "", iconSize: [px(20), px(20)], html: `<i class="plc${sh ? " sh" : ""}">${sh ? "⌂" : "P"}</i>` }) })
+      .bindTooltip(`${kind}: ${p.name}`, { direction: "top", offset: [0, -10] })
+      .bindPopup(() => `<b>${esc(p.name)}</b><br><span class="rep-state">${kind}</span>`
+        + (p.status?.value ? ` <span class="rep-state">${esc(t("plStatus", p.status.value, p.status.reporters))}</span>` : "")
+        + (p.note ? `<div style="white-space:pre-line;margin-top:8px">${esc(p.note)}</div>` : "")
+        + `<div class="reading" style="margin-top:8px">${t("plSource")}: ${src}<br>${esc(t("plUpdated", ago(p.updated)))}</div>`
+        + (p.maps ? `<a href="${esc(p.maps)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px">${t("plMaps")}</a>` : "")
+        + `<div class="reading" style="margin-top:8px">${t("plVia")}</div>`);
+  }));
+}
+
 /* ---------- heavy rain (thaiwater gauges via public.rain_gauges) ----------
    Only gauges at 35 mm+ in 24 h (TMD's "heavy rain"). Clusters show the
    highest reading inside them, so the worst spot survives zooming out. */
@@ -1235,7 +1290,7 @@ function panelCustom(title, sub) {
   $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false);
   $("#p-name").textContent = title; $("#p-sub").textContent = sub;
   for (const id of ["#p-view", "#p-meta", "#panel .row"]) $(id).hidden = true;
-  const box = $("#p-place"); box.hidden = false;
+  const box = $("#p-place"); box.hidden = false; box.classList.remove("detail");
   $("#panel").classList.add("open");
   return box;
 }
@@ -1605,7 +1660,35 @@ async function mountTrend(box, hours = 24, popup = box._popup) {
   // re-renders the content and would wipe this chart.
   popup?._updateLayout?.(); popup?._updatePosition?.();
 }
-map.on("popupopen", e => e.popup.getElement()?.querySelectorAll(".trend").forEach(b => mountTrend(b, 24, e.popup)));
+new MutationObserver(() => document.body.classList.toggle("sheet", $("#panel").classList.contains("open")))
+  .observe($("#panel"), { attributes: true, attributeFilter: ["class"] });
+// Marker details open in the side panel (a bottom sheet on phones) rather than a
+// popup over the map: more room, and the map stays in view. Popup content is built
+// as before and moved across; its first <b> becomes the panel title.
+L.Popup.prototype.options.autoPan = false;
+map.on("popupopen", e => {
+  const node = e.popup._contentNode, ll = e.popup._source?.getLatLng?.();
+  if (!node) return;
+  const head = node.querySelector("b"), title = head?.textContent || "";
+  if (head) { if (head.nextSibling?.nodeName === "BR") head.nextSibling.remove(); head.remove(); }
+  const box = panelCustom(title, "");
+  box.classList.add("detail");
+  box.replaceChildren(...node.childNodes);
+  map.closePopup(e.popup);
+  if (ll) {
+    pin = L.marker(ll, { zIndexOffset: 1000 }).addTo(map);
+    // keep the spot in view: between the top bar and the sheet on phones, left of
+    // the panel otherwise (next frame, once the bar has shrunk)
+    requestAnimationFrame(() => {
+      const pt = map.latLngToContainerPoint(ll), { x: w, y: h } = map.getSize(), P = $("#panel");
+      if (matchMedia("(max-width: 720px)").matches) {
+        const top = $("#bar").getBoundingClientRect().bottom, bottom = h - P.offsetHeight;
+        if (pt.y < top + 20 || pt.y > bottom - 20) map.panBy([0, pt.y - (top + bottom) / 2]);
+      } else if (pt.x > w - P.offsetWidth - 40) map.panBy([pt.x - (w - P.offsetWidth) / 2, 0]);
+    });
+  }
+  box.querySelectorAll(".trend").forEach(b => mountTrend(b, 24, null));
+});
 
 let floodData = null, flood = null;   // flood: null (off) | "error" | {counts, times}
 const bkkTime = str => Date.parse(String(str).replace(" ", "T").slice(0, 16) + "+07:00");
@@ -1650,7 +1733,7 @@ async function loadFlood() {
     const t = bkkTime(r.ts), old = roads.get(r.code);
     if (!old || t > old.t) roads.set(r.code, { th: r.th, en: r.en, y: r.y, x: r.x, cm: r.cm, ts: r.ts, t, tw: old?.tw, code: r.code });
   }
-  floodData = { wl, roads: [...roads.values()], canals: bma?.canals || [], tunnels: bma?.tunnels || [], flows: bma?.flows || [] };
+  floodData = { wl, roads: [...roads.values()], canals: bma?.canals || [], tunnels: bma?.tunnels || [], flows: bma?.flows || [], warnings: tw?.warnings || [] };
   renderFlood();
   loadTrends();
 }
@@ -1809,7 +1892,9 @@ fetch("cameras.json").then(r => r.json()).then(data => {
     loadDams();
     if ($("#l-events").checked) eventLayer.addTo(map);
     loadEvents();
-  } else { $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#l-rain").closest("label").hidden = true; $("#l-dam").closest("label").hidden = true; $("#l-events").closest("label").hidden = true; }
+    if ($("#l-places").checked) placeLayer.addTo(map);
+    loadPlaces();
+  } else { $("#l-places").closest("label").hidden = true; $("#photos").closest("label").hidden = true; $("#reports").closest("label").hidden = true; $("#l-rain").closest("label").hidden = true; $("#l-dam").closest("label").hidden = true; $("#l-events").closest("label").hidden = true; }
 }).catch(() => $("#count").textContent = t("noList"));
 
 /* ---------- highlights: an executive summary of what's in the current view ----------
@@ -1874,6 +1959,8 @@ async function updateHighlights() {
     return [x, v];
   }).filter(x => x[1] != null && Math.abs(x[1]) <= limit);
 
+  const warns = (floodData?.warnings || []).filter(w => inWin(bkkTime(w.datetime)));
+  if (warns.length) row(t("hlWarn"), warns.map(w => `<div>${esc(w.message)}</div>`).join("") + `<small>${t("hlWarnNote")}</small>`);
   if (cp.length) {
     const arrow = (v, eps, fmt) => v == null ? "" : v > eps ? ` <b class="up">▲${fmt(v)}</b>` : v < -eps ? ` <b class="down">▼${fmt(-v)}</b>` : " →";
     const line = (name, ll, val, over, tr) => `<div class="cp" data-ll="${ll}"><span class="cp-n">${esc(name)}</span>`
@@ -1936,6 +2023,10 @@ async function updateHighlights() {
     const es = events.filter(e => inView(e.lat, e.lon) && Date.now() - Date.parse(e.starts) <= H * 3600e3);
     if (es.length) row(t("hlEvents"), esc(t("hlEventsV", es.length, es.filter(e => !e.stops || Date.parse(e.stops) > Date.now()).length, H)));
   }
+  if (on("#l-places") && places.length) {
+    const ps = places.filter(p => inView(p.lat, p.lon)), sh = ps.filter(p => p.category === "shelter").length;
+    if (ps.length) row(t("hlPlaces"), esc(t("hlPlacesV", sh, ps.length - sh)));
+  }
   if (on("#l-dam") && dams.length) {
     const ds = dams.filter(x => inView(x.lat, x.lon) && x.pct >= 80);
     if (ds.length) { const f = ds.reduce((m, x) => x.pct > m.pct ? x : m); row(t("hlDams"), esc(t("hlDamV", ds.length, bi({ th: f.name_th, en: f.name_en }), Math.round(f.pct)))); }
@@ -1978,7 +2069,7 @@ async function refreshAll(manual) {
   trendCache.clear(); hlCache.clear();
   await Promise.allSettled([
     FLOOD_KINDS.some(k => $(`#l-${k}`).checked) ? loadFlood().catch(() => { flood = "error"; draw(); }) : null,
-    loadHwy(manual), photosOn && loadPhotos(), photosOn && loadReports(), photosOn && loadRain(), photosOn && loadDams(), photosOn && loadEvents(),
+    loadHwy(manual), photosOn && loadPhotos(), photosOn && loadReports(), photosOn && loadRain(), photosOn && loadDams(), photosOn && loadEvents(), photosOn && loadPlaces(),
     $("#radar").checked && loadRadar(),
   ]);
   lastRefresh = Date.now();
@@ -2007,6 +2098,7 @@ function soloView(cam) {
 $("#photofile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) startCompose(f).catch(() => toast(t("postFail"))); };
 $("#l-hwy").onchange = e => { e.target.checked ? hwyLayer.addTo(map) : map.removeLayer(hwyLayer); draw(); };
 $("#l-events").onchange = e => { e.target.checked ? eventLayer.addTo(map) : map.removeLayer(eventLayer); draw(); };
+$("#l-places").onchange = e => { e.target.checked ? placeLayer.addTo(map) : map.removeLayer(placeLayer); draw(); };
 $("#l-dam").onchange = e => { e.target.checked ? damLayer.addTo(map) : map.removeLayer(damLayer); draw(); };
 $("#l-rain").onchange = e => { e.target.checked ? rainLayer.addTo(map) : map.removeLayer(rainLayer); draw(); };
 $("#reports").onchange = e => { e.target.checked ? reportLayer.addTo(map) : map.removeLayer(reportLayer); draw(); };
@@ -2045,6 +2137,7 @@ function applyLang() {
   if (dams.length) renderDams();
   if (events.length) renderEvents();
   if (hwy.length) renderHwy();
+  if (places.length) renderPlaces();
   for (const o of $("#win").options) o.textContent = t("winOpt", o.value);
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
