@@ -392,8 +392,10 @@
     #panel.open { transform:none }
     body.sheet #hlbtn, body.sheet #highlights { display:none !important }
 
-    .grab { display:block; width:36px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0 }
-    #panel header { padding-top:10px }
+    .grab { display:block; width:44px; height:5px; border-radius:3px; background:var(--dim); opacity:.5; margin:0 auto;
+            box-sizing:content-box; border:10px solid transparent; background-clip:padding-box; cursor:grab }
+    .grab, #panel header { touch-action:none }   /* the drag is ours, not a page scroll */
+    #panel header { padding-top:2px }
     .legend { grid-template-columns:1fr }
   }
   body.solo > *:not(#solo):not(.solo-cap) { display:none !important }
@@ -1772,6 +1774,29 @@ async function mountTrend(box, hours, popup = box._popup) {
 // desktop: the detail pane starts just under the search and buttons
 const setBarH = () => document.documentElement.style.setProperty("--barh", Math.round($("#bar .row2").getBoundingClientRect().bottom + 8) + "px");
 setBarH(); addEventListener("resize", setBarH);
+// Phones: drag the sheet down by its bar (or title strip) to close it. Past a quarter
+// of its height, or a quick flick, closes; anything less springs back.
+{
+  const P = $("#panel"), phone = () => matchMedia("(max-width: 720px)").matches;
+  let y0 = null, t0 = 0, dy = 0;
+  const start = e => {
+    if (!phone() || e.target.closest("#close")) return;
+    y0 = e.clientY; t0 = e.timeStamp; dy = 0;
+    P.style.transition = "none";
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const move = e => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); P.style.transform = `translateY(${dy}px)`; };
+  const end = e => {
+    if (y0 == null) return;
+    const fast = dy > 40 && dy / Math.max(1, e.timeStamp - t0) > 0.6;   // px per ms
+    y0 = null; P.style.transition = ""; P.style.transform = "";
+    if (dy > P.offsetHeight * 0.25 || fast) $("#close").click();
+  };
+  for (const el of [P.querySelector(".grab"), P.querySelector("header")]) {
+    el.addEventListener("pointerdown", start); el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+  }
+}
 new MutationObserver(() => document.body.classList.toggle("sheet", $("#panel").classList.contains("open")))
   .observe($("#panel"), { attributes: true, attributeFilter: ["class"] });
 // Marker details open in the side panel (a bottom sheet on phones) rather than a
