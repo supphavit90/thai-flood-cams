@@ -121,6 +121,12 @@
   .camthumbs video { width:100%; aspect-ratio:16/10; object-fit:cover; display:block; background:#000 }
   .camthumbs button { position:relative }
   .camthumbs .has .ph { display:none }
+  .camthumbs button:hover, .camthumbs button:focus-visible { box-shadow:0 0 0 2px var(--accent) }
+  .camring { position:absolute; left:-19px; top:-19px; width:38px; height:38px; border-radius:50%;
+             border:3px solid var(--accent); background:color-mix(in srgb, var(--accent) 18%, transparent);
+             animation:camring 1.1s ease-out infinite }
+  @keyframes camring { 0% { transform:scale(.7); opacity:1 } 100% { transform:scale(1.35); opacity:.35 } }
+  @media (prefers-reduced-motion: reduce) { .camring { animation:none } }
   .camthumbs .live::after { content:"▶ LIVE"; position:absolute; top:6px; left:6px; padding:2px 6px; border-radius:4px;
                             background:var(--live); color:#fff; font:700 11px/1.3 var(--mono) }
   /* symbol key */
@@ -519,7 +525,7 @@ const I18N = {
     kRoadK: "Road flooding, water depth in cm", kTunnel: "Underpass flooded (cm)", kTrendK: "▲ rising · ▼ falling · → steady",
     kRainK: "Heavy rain in the last 24 h (mm)", kDamK: "Major dam, % full (orange 80%+, red over 100%)",
     kRep: "Resident flood report (Traffy)", kHwy: "Flooded highway (red = impassable)", kEv: "Road flood report (Longdo)",
-    aroundHere: "Around here", kSh: "Shelter", kPk: "Free flood parking", kCam: "Camera (green = live video)", pNearCams: "Cameras nearby",
+    aroundHere: "Around here", kSh: "Shelter", kPk: "Free flood parking", kCam: "Camera (green = live video)", pNearCams: "Cameras nearby", pCamsDead: "The cameras near here are offline right now.", pCamsNone: "No cameras within 5 km.",
     camLive: "▶ Live video", camOpen: "Open camera ↗",
     wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
     hSensors: "Water sensors", hReports: "Reports", hWeather: "Weather",
@@ -641,7 +647,7 @@ const I18N = {
     kRoadK: "น้ำท่วมถนน ความลึก (ซม.)", kTunnel: "อุโมงค์ทางลอดน้ำท่วม (ซม.)", kTrendK: "▲ เพิ่มขึ้น · ▼ ลดลง · → ทรงตัว",
     kRainK: "ฝนตกหนักใน 24 ชม. (มม.)", kDamK: "เขื่อนใหญ่ % ความจุ (ส้ม 80%+, แดง เกิน 100%)",
     kRep: "ประชาชนแจ้งน้ำท่วม (Traffy)", kHwy: "ทางหลวงน้ำท่วม (แดง = ผ่านไม่ได้)", kEv: "รายงานน้ำท่วมถนน (Longdo)",
-    aroundHere: "รอบ ๆ จุดนี้", kSh: "ที่พักพิง", kPk: "จุดจอดรถหนีน้ำฟรี", kCam: "กล้อง (เขียว = ภาพสด)", pNearCams: "กล้องใกล้จุดนี้",
+    aroundHere: "รอบ ๆ จุดนี้", kSh: "ที่พักพิง", kPk: "จุดจอดรถหนีน้ำฟรี", kCam: "กล้อง (เขียว = ภาพสด)", pNearCams: "กล้องใกล้จุดนี้", pCamsDead: "กล้องบริเวณนี้ไม่มีสัญญาณในขณะนี้", pCamsNone: "ไม่มีกล้องในรัศมี 5 กม.",
     camLive: "▶ ภาพสด", camOpen: "เปิดกล้อง ↗",
     wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
     hSensors: "เซนเซอร์วัดน้ำ", hReports: "รายงาน", hWeather: "สภาพอากาศ",
@@ -1799,12 +1805,12 @@ map.on("popupopen", e => {
 // or the first frame of a live stream (then paused - tap plays it live). Dead
 // cameras (iTIC's snapshot-only ones often are) drop out for the next nearest;
 // BMA's link-only cameras, which have no picture, go last. Returns a stop function.
+let camRing = null;
 function nearCams(box, lat, lon) {
   // central Bangkok is almost all BMA cameras (no picture outside BMA's own site),
   // so look further for ones that can show a picture, and fill up with BMA links
   const all = cams.filter(c => c.y != null).map(c => [distKm(lat, lon, c.y, c.x), c]).sort((a, z) => a[0] - z[0]);
   const queue = [...all.filter(([d, c]) => d <= 5 && (c.i || c.h || c.yt)).slice(0, 12), ...all.filter(([d, c]) => d <= 2 && !(c.i || c.h || c.yt)).slice(0, 4)];
-  if (!queue.length) return () => {};
   const km = d => d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
   const sec = document.createElement("section");
   sec.className = "nearcams";
@@ -1812,12 +1818,22 @@ function nearCams(box, lat, lon) {
   const grid = sec.querySelector(".camthumbs"), stops = [];
   const next = () => {
     const it = queue.shift();
-    if (it) add(...it); else if (!grid.children.length) sec.remove();
+    if (it) add(...it);
+    else if (!grid.children.length) grid.outerHTML = `<p class="none">${t(tried ? "pCamsDead" : "pCamsNone")}</p>`;
   };
+  let tried = 0;
   const add = (d, c) => {
+    tried++;
     const b = document.createElement("button");
     b.innerHTML = `<i class="ph">${c.h ? t("camLive") : t("camOpen")}</i><span>${esc(c.n)} · ${km(d)}</span>`;
     b.onclick = () => openCam(c);
+    // hovering a picture rings that camera on the map
+    b.onmouseenter = b.onfocus = () => {
+      camRing?.remove();
+      camRing = L.marker([c.y, c.x], { interactive: false, zIndexOffset: 1300,
+        icon: L.divIcon({ className: "", iconSize: [0, 0], html: '<span class="camring"></span>' }) }).addTo(map);
+    };
+    b.onmouseleave = b.onblur = () => { camRing?.remove(); camRing = null; };
     grid.append(b);
     const fail = () => { b.remove(); next(); };
     const show = el => { b.prepend(el); b.classList.add("has"); };
@@ -1825,7 +1841,11 @@ function nearCams(box, lat, lon) {
     if (img) {
       const im = new Image();
       im.alt = "";
-      im.onload = () => im.naturalWidth > 16 ? show(im) : fail();   // iTIC sends a 1-px / "not found" body when a camera is down
+      // iTIC sends a 1-px / "not found" body, or a 320x240 "No signal" card, when a camera is down.
+      // ponytail: that card is recognised by size only (no CORS, so no pixel check); a live
+      // iTIC snapshot at exactly 320x240 would be skipped too - their live ones stream instead.
+      const dead = () => im.naturalWidth <= 16 || (c.s === "itic" && im.naturalWidth === 320 && im.naturalHeight === 240);
+      im.onload = () => dead() ? fail() : show(im);
       im.onerror = fail;
       im.src = img;
     } else if (c.h) {
@@ -1844,7 +1864,7 @@ function nearCams(box, lat, lon) {
   };
   for (let i = 0; i < 4; i++) next();
   box.append(sec);
-  return () => stops.forEach(f => f());
+  return () => { stops.forEach(f => f()); camRing?.remove(); camRing = null; };
 }
 
 let floodData = null, flood = null;   // flood: null (off) | "error" | {counts, times}
