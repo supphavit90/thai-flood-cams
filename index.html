@@ -500,7 +500,7 @@ const I18N = {
     title: "Thai Flood Cams", search: "Search a place or camera", wall: "Cameras", refreshShort: "Refresh",
     secView: "In this map view", secAll: "All of Thailand", keyTitle: "What the symbols mean",
     kRiver: "River level: blue = high, red = over the bank", kCanal: "Bangkok canal: orange = alert, red = critical",
-    kRoad: "Road flooding, water depth in cm", kTunnel: "Underpass flooded (cm)", kTrend: "▲ rising · ▼ falling · → steady",
+    kRoadK: "Road flooding, water depth in cm", kTunnel: "Underpass flooded (cm)", kTrendK: "▲ rising · ▼ falling · → steady",
     kRainK: "Heavy rain in the last 24 h (mm)", kDamK: "Major dam, % full (orange 80%+, red over 100%)",
     kRep: "Resident flood report (Traffy)", kHwy: "Flooded highway (red = impassable)", kEv: "Road flood report (Longdo)",
     kSh: "Shelter", kPk: "Free flood parking", kCam: "Camera (green = live video)", pNearCams: "Cameras nearby",
@@ -621,7 +621,7 @@ const I18N = {
     title: "กล้องติดตามน้ำท่วม", search: "ค้นหาสถานที่หรือกล้อง", wall: "ดูกล้อง", refreshShort: "รีเฟรช",
     secView: "ในแผนที่ที่แสดงอยู่", secAll: "ทั่วประเทศ", keyTitle: "ความหมายของสัญลักษณ์",
     kRiver: "ระดับน้ำในแม่น้ำ: น้ำเงิน = น้ำมาก, แดง = ล้นตลิ่ง", kCanal: "คลองใน กทม.: ส้ม = เฝ้าระวัง, แดง = วิกฤต",
-    kRoad: "น้ำท่วมถนน ความลึก (ซม.)", kTunnel: "อุโมงค์ทางลอดน้ำท่วม (ซม.)", kTrend: "▲ เพิ่มขึ้น · ▼ ลดลง · → ทรงตัว",
+    kRoadK: "น้ำท่วมถนน ความลึก (ซม.)", kTunnel: "อุโมงค์ทางลอดน้ำท่วม (ซม.)", kTrendK: "▲ เพิ่มขึ้น · ▼ ลดลง · → ทรงตัว",
     kRainK: "ฝนตกหนักใน 24 ชม. (มม.)", kDamK: "เขื่อนใหญ่ % ความจุ (ส้ม 80%+, แดง เกิน 100%)",
     kRep: "ประชาชนแจ้งน้ำท่วม (Traffy)", kHwy: "ทางหลวงน้ำท่วม (แดง = ผ่านไม่ได้)", kEv: "รายงานน้ำท่วมถนน (Longdo)",
     kSh: "ที่พักพิง", kPk: "จุดจอดรถหนีน้ำฟรี", kCam: "กล้อง (เขียว = ภาพสด)", pNearCams: "กล้องใกล้จุดนี้",
@@ -2207,13 +2207,13 @@ function renderKey() {
   const pill = (c, sh, val, tr) => `<span class="spill" style="--c:${css(c)}"><i class="sh ${sh}"></i>${val ? `<em>${val}</em>` : ""}<b class="t ${tr[0]}">${tr[1]}</b></span>`;
   const items = [
     [pill("--wl-over", "", "", ["up", "▲"]), "kRiver"], [pill("--alert", "dia", "", ["flat", "→"]), "kCanal"],
-    [pill("--road", "", "20", ["down", "▼"]), "kRoad"], [pill("--road", "ring", "15", ["na", "–"]), "kTunnel"],
+    [pill("--road", "", "20", ["down", "▼"]), "kRoadK"], [pill("--road", "ring", "15", ["na", "–"]), "kTunnel"],
     [`<i class="rainpill r2">120</i>`, "kRainK"], [`<span class="dampill high">${DAM_SVG}87%</span>`, "kDamK"],
     [box(13, 13, '<i class="rep"></i>'), "kRep"], [`<i class="hwy closed">31</i>`, "kHwy"], [box(19, 17, '<i class="lev"></i>'), "kEv"],
     [box(20, 20, '<i class="plc sh">⌂</i>'), "kSh"], [box(20, 20, '<i class="plc">P</i>'), "kPk"], [box(22, 22, LENS, "cam live"), "kCam"],
   ];
   $("#keymap").innerHTML = items.map(([ic, k]) => `<li><span class="ic">${ic}</span><span>${esc(t(k))}</span></li>`).join("")
-    + `<li><span class="ic"></span><span>${esc(t("kTrend"))}</span></li>`;
+    + `<li><span class="ic"></span><span>${esc(t("kTrendK"))}</span></li>`;
 }
 function applyLang() {
   document.documentElement.lang = lang;
