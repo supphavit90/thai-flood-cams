@@ -178,14 +178,16 @@
   #winwrap { padding:0 10px; gap:5px; cursor:pointer }
   #win { border:0; background:transparent; color:inherit; font:inherit; padding:0; cursor:pointer; outline:none }
   /* desktop: summary lives in a left side pane, details in the right one */
+  /* desktop: one pane on the right - summary, with details sliding over it */
   @media (min-width: 721px) {
-    #bar { top:0; left:0; bottom:0; right:auto; width:400px; max-width:none; border:0; border-right:1px solid var(--line);
+    :root { --pane:440px }
+    #bar { top:0; right:0; bottom:0; left:auto; width:var(--pane); max-width:none; border:0; border-left:1px solid var(--line);
            border-radius:0; overflow:auto; padding:12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) }
-    #map { left:400px }
+    #map { right:var(--pane) }
     #bar #highlights, #bar #filters { max-height:none; overflow:visible }
     #bar #highlights { padding:12px 2px 4px }
-    body #panel { left:0; right:auto; width:400px; top:var(--barh, 124px); height:auto; bottom:0; border-left:0;
-             border-top:1px solid var(--line); border-right:1px solid var(--line); box-shadow:none; transform:translateX(-105%) }
+    body #panel { right:0; left:auto; width:var(--pane); top:var(--barh, 124px); height:auto; bottom:0;
+             border-top:1px solid var(--line); box-shadow:none }
     #bar .row2 .key:not(.ico) { flex:1 1 auto; justify-content:center }
   }
   /* phones: search gets its own row so the buttons don't squeeze it */
