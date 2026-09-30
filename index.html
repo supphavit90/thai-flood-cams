@@ -42,7 +42,7 @@
   [hidden] { display:none !important }   /* #filters sets display:grid, which would beat the attribute */
   html, body { height:100% }
   body { margin:0; background:var(--bg); color:var(--ink); overflow:hidden;
-         font:14px/1.45 var(--sans); -webkit-tap-highlight-color:transparent }
+         font:15px/1.5 var(--sans); -webkit-tap-highlight-color:transparent }
   button, input { font:inherit; color:inherit }
   button { cursor:pointer }
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px }
@@ -80,6 +80,12 @@
          background:var(--panel); border:2px solid var(--ink); box-shadow:0 1px 3px #0005 }
   .dam i { position:absolute; left:0; right:0; bottom:0; background:var(--dam) }
   .dam.high i { background:var(--alert) } .dam.over i { background:var(--wl-over) }
+  .dampill { --c:var(--dam); display:inline-flex; align-items:center; gap:4px; height:24px; padding:0 7px 0 5px;
+             border-radius:5px; background:var(--panel); border:2px solid var(--c); color:var(--ink);
+             font:700 11.5px/1 var(--mono); white-space:nowrap; box-shadow:var(--shadow); transform:translate(-50%,-50%) }
+  .dampill svg { width:16px; height:14px; color:var(--c); flex:none }
+  .dampill.high { --c:var(--alert) } .dampill.over { --c:var(--wl-over) }
+  @media (pointer: coarse) { .dampill { height:28px; font-size:13px } .dampill svg { width:18px; height:16px } }
   .dampct { height:8px; border-radius:4px; background:var(--well); overflow:hidden; margin:6px 0 }
   .dampct i { display:block; height:100%; background:var(--dam) }
   .dampct.high i { background:var(--alert) } .dampct.over i { background:var(--wl-over) }
@@ -98,7 +104,24 @@
   .plc-cluster { display:grid; place-items:center; border-radius:6px; background:var(--live); color:#fff;
                  border:2px solid var(--panel); box-shadow:var(--shadow); font:500 11px/1 var(--mono) }
   /* marker details shown in the side panel */
-  #p-place.detail { display:block; font-size:13px; line-height:1.5 }
+  #p-place.detail { display:block; font-size:15px; line-height:1.55 }
+  #p-place.detail .rep-state { font-size:13px; padding:4px 8px }
+  /* cameras near the selected spot */
+  #p-place .nearcams h3 { margin:18px 0 8px }
+  .camthumbs { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px }
+  .camthumbs button { all:unset; cursor:pointer; border-radius:8px; overflow:hidden; background:var(--well); display:grid }
+  .camthumbs button:focus-visible { outline:2px solid var(--accent) }
+  .camthumbs img, .camthumbs .ph { width:100%; aspect-ratio:16/10; object-fit:cover; display:block; background:#000 }
+  .camthumbs .ph { display:grid; place-items:center; color:#fff; font-size:13px; background:#2a2a28 }
+  .camthumbs span { padding:6px 8px; font-size:12.5px; line-height:1.3 }
+  .camthumbs .noimg img { display:none } .camthumbs button:not(.noimg) .ph.fb { display:none }
+  /* symbol key */
+  .keymap summary { cursor:pointer; font-weight:600; font-size:14px; padding:8px 0; list-style-position:inside }
+  .keymap ul { list-style:none; margin:4px 0 0; padding:0; display:grid; gap:8px; font-size:13.5px }
+  .keymap li { display:grid; grid-template-columns:64px 1fr; align-items:center; gap:10px }
+  .keymap .ic { position:relative; height:26px; display:flex; align-items:center; justify-content:center }
+  .keymap .ic .spill, .keymap .ic .dampill, .keymap .ic .rainpill, .keymap .ic .hwy { transform:none }
+  .keymap .ic .box { position:relative; display:block }
   #p-place.detail a { color:var(--ink); text-underline-offset:3px }
   #p-place.detail .trend { width:100% }
   #p-place.detail .rep-photo { max-width:100% }
@@ -135,58 +158,73 @@
          background:var(--panel); border:1px solid var(--line); border-radius:var(--r);
          box-shadow:var(--shadow); padding:6px }
   #bar .row { display:flex; gap:6px }
-  #q { flex:1; min-width:0; height:40px; padding:0 12px; border:1px solid transparent;
+  #q { flex:1; min-width:0; height:44px; padding:0 12px; border:1px solid transparent;
        border-radius:7px; background:var(--well); outline:none }
   #q:focus { border-color:var(--accent) }
   #q::placeholder { color:var(--dim) }
-  .key { height:40px; padding:0 14px; border-radius:7px; border:1px solid var(--line);
+  .key { height:44px; padding:0 14px; border-radius:8px; border:1px solid var(--line);
          background:var(--panel); display:inline-flex; align-items:center; gap:8px; white-space:nowrap }
   .key:hover { background:var(--well) }
   .key[aria-expanded="true"], .key.on { border-color:var(--ink) }
   #refreshbtn { padding:0 11px }
   #winwrap { padding:0 10px; gap:5px; cursor:pointer }
   #win { border:0; background:transparent; color:inherit; font:inherit; padding:0; cursor:pointer; outline:none }
+  /* desktop: summary lives in a left side pane, details in the right one */
+  @media (min-width: 721px) {
+    #bar { top:0; left:0; bottom:0; right:auto; width:400px; max-width:none; border:0; border-right:1px solid var(--line);
+           border-radius:0; overflow:auto; padding:12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) }
+    #map { left:400px }
+    #bar #hlbtn { display:none }
+    #highlights { max-height:none; border-top:0; padding:10px 2px 4px }
+    #filters { max-height:none }
+    #bar .row { flex-wrap:wrap } #q { flex-basis:100% } #bar .row .key { flex:1 1 auto; justify-content:center }
+  }
   /* phones: search gets its own row so the buttons don't squeeze it */
   @media (max-width: 480px) { #bar .row { flex-wrap:wrap } #q { flex-basis:100% } #bar .row .key { flex:1 1 auto; justify-content:center } }
   #refreshbtn.busy svg { animation:spin .9s linear infinite }
   @keyframes spin { to { transform:rotate(360deg) } }
   .key .lamp { width:7px; height:7px; border-radius:50%; background:var(--line) }
   .key.on .lamp { background:var(--accent) }
-  #count { margin:6px 4px 0; font-size:11px; color:var(--dim); letter-spacing:.01em }
-  #count b { color:var(--ink); font-weight:500 }
+  /* country-wide status, one fact per line */
+  #count { margin:0; padding:0; list-style:none; display:grid; gap:4px; font-size:13px; color:var(--dim) }
+  #count li { padding-left:12px; position:relative }
+  #count li::before { content:""; position:absolute; left:0; top:.6em; width:5px; height:5px; border-radius:50%; background:var(--line) }
+  .sec-h { margin:14px 0 6px; font-size:13px; font-weight:600; color:var(--ink) }
 
   /* a real button, full width, so it reads as tappable on a phone */
-  #hlbtn { display:flex; align-items:center; gap:8px; width:100%; margin-top:6px; min-height:38px; padding:0 12px;
+  #bar .row2 { margin-top:6px }
+  #hlbtn { display:flex; align-items:center; gap:8px; flex:1; min-width:0; margin:0; min-height:38px; padding:0 12px;
            border:1px solid var(--line); border-radius:7px; background:var(--well); color:var(--ink);
-           font:500 13px/1 var(--sans); cursor:pointer; text-align:left }
+           font:600 15px/1.2 var(--sans); cursor:pointer; text-align:left; min-height:44px }
   #hlbtn:hover { border-color:var(--ink) }
   #hlbtn .chev { margin-left:auto; font-size:11px; color:var(--dim); transition:transform .15s }
   #hlbtn[aria-expanded="true"] { background:var(--panel); border-color:var(--ink) }
   #hlbtn[aria-expanded="true"] .chev { transform:rotate(180deg) }
-  #highlights { margin-top:4px; border-top:1px solid var(--line); padding:8px 4px 2px; display:grid; gap:7px;
-                max-height:min(42vh, 360px); overflow:auto }
-  #hlbody { display:grid; gap:7px }
-  .hl { display:grid; grid-template-columns:88px 1fr; gap:2px 10px; font-size:12px; line-height:1.4 }
-  .hl-k { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); padding-top:2px }
-  .hl-v { color:var(--ink) }
-  .hl-v small { display:block; color:var(--dim); font-size:11px }
+  #highlights { margin-top:4px; border-top:1px solid var(--line); padding:10px 4px 2px; display:grid; gap:0;
+                max-height:min(62vh, 560px); overflow:auto }
+  #hlbody { display:grid; gap:8px }
+  /* heading line, then the facts full width: easier to follow than two columns */
+  .hl { display:grid; gap:3px; font-size:14px; line-height:1.45; padding-top:9px; border-top:1px solid var(--line) }
+  .hl:first-child { border-top:0; padding-top:0 }
+  .hl-k { font-size:13px; font-weight:600; color:var(--dim) }
+  .hl-v { color:var(--ink); min-width:0; overflow-wrap:anywhere }
+  .hl-v small { display:block; color:var(--dim); font-size:12.5px }
   .chips { display:inline-flex; gap:4px; flex-wrap:wrap; margin-left:6px; vertical-align:1px }
-  .chip { font:500 10px/1 var(--mono); padding:3px 5px; border-radius:4px; background:var(--well); color:var(--dim); white-space:nowrap }
+  .chip { font:500 12px/1 var(--mono); padding:4px 6px; border-radius:4px; background:var(--well); color:var(--dim); white-space:nowrap }
   .chip.up { background:color-mix(in srgb, var(--wl-over) 16%, var(--panel)); color:var(--wl-over) }
   .chip.down { background:color-mix(in srgb, var(--live) 18%, var(--panel)); color:var(--live) }
-  .hl-none { color:var(--dim); font-size:12px }
-  .cp { display:grid; grid-template-columns:1fr auto; gap:0 8px; padding:3px 0; border-top:1px solid var(--line); cursor:pointer }
+  .hl-none { color:var(--dim); font-size:13px }
+  .cp { display:grid; grid-template-columns:1fr auto; gap:0 10px; padding:5px 0; border-top:1px dashed var(--line); cursor:pointer; align-items:baseline }
   .cp:first-child { border-top:0; padding-top:0 }
   .cp:hover .cp-n { text-decoration:underline }
-  .cp-v { font:11px var(--mono); text-align:right; white-space:nowrap }
+  .cp-v { font:12.5px var(--mono); text-align:right }
   .cp-v .up { color:var(--wl-over) } .cp-v .down { color:var(--live) }
   .cp-v.over { color:var(--wl-over); font-weight:700 }
   #filters { margin-top:6px; border-top:1px solid var(--line); padding:10px 6px 4px;
              display:grid; gap:14px; max-height:min(62vh, 520px); overflow:auto }
-  .group h3 { margin:0 0 6px; font-size:10px; font-weight:600; letter-spacing:.12em;
-              text-transform:uppercase; color:var(--dim) }
+  .group h3 { margin:0 0 6px; font-size:13px; font-weight:600; color:var(--dim) }
   .switch { display:flex; align-items:center; gap:10px; min-height:36px; cursor:pointer; user-select:none }
-  .switch small { display:block; color:var(--dim); font-size:11px }
+  .switch small { display:block; color:var(--dim); font-size:12.5px }
   .switch input { appearance:none; -webkit-appearance:none; flex:none; margin:0; width:34px; height:20px;
                   border-radius:10px; background:var(--line); position:relative; cursor:pointer;
                   transition:background .15s }
@@ -201,14 +239,14 @@
   .dot.dia { border-radius:1px; transform:rotate(45deg) scale(.85) }
   /* sensor pill: [shape · value · trend], one clickable piece. Shape keeps the
      type (circle = river / road, diamond = canal, ring = underpass); colour = status. */
-  .spill { display:inline-flex; align-items:center; gap:4px; height:20px; padding:0 6px 0 4px; border-radius:10px;
+  .spill { display:inline-flex; align-items:center; gap:4px; height:23px; padding:0 7px 0 5px; border-radius:12px;
            background:var(--panel); border:2px solid var(--c); box-shadow:0 1px 3px #0005; cursor:pointer;
            transform:translate(-50%, -50%); white-space:nowrap; font:700 10px/1 var(--mono); color:var(--ink) }
-  .spill .sh { width:11px; height:11px; flex:none; border-radius:50%; background:var(--c) }
+  .spill .sh { width:12px; height:12px; flex:none; border-radius:50%; background:var(--c) }
   .spill .sh.dia { border-radius:1px; transform:rotate(45deg) scale(.82) }
   .spill .sh.ring { background:var(--panel); box-shadow:inset 0 0 0 3px var(--c) }
   .spill em { font-style:normal }
-  .spill .t { font-size:10px; min-width:8px; text-align:center }
+  .spill .t { font-size:11px; min-width:8px; text-align:center }
   .spill .t.up { color:var(--wl-over) } .spill .t.down { color:var(--live) } .spill .t.flat, .spill .t.na { color:var(--dim) }
   .spill:hover { box-shadow:0 0 0 2px var(--panel), 0 0 0 4px var(--c) }
   @media (pointer: coarse) {
@@ -239,7 +277,7 @@
   #panel .row .key { flex:1; justify-content:center }
   #p-meta { margin:12px 0 0; font-size:11px; color:var(--dim) }
   #p-place { display:grid; gap:16px }
-  #p-place h3 { margin:0 0 6px; font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--dim) }
+  #p-place h3 { margin:0 0 6px; font-size:13px; font-weight:600; color:var(--dim) }
   #p-place ul { list-style:none; margin:0; padding:0; display:grid; gap:1px; background:var(--line);
                 border:1px solid var(--line); border-radius:8px; overflow:hidden }
   #p-place li { background:var(--panel); padding:9px 11px; display:grid; grid-template-columns:auto 1fr auto;
@@ -297,7 +335,7 @@
   .leaflet-container a.leaflet-popup-close-button { color:var(--dim); width:32px; height:32px; font-size:20px }
   .leaflet-tooltip { background:var(--panel); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow); font-size:12px }
   .leaflet-tooltip-top::before { border-top-color:var(--line) }
-  .reading { font-family:var(--mono); font-size:12px; color:var(--dim) }
+  .reading { font-family:var(--mono); font-size:13px; color:var(--dim) }
   .trend { width:260px; max-width:100%; margin-top:10px; border-top:1px solid var(--line); padding-top:8px }
   .trend .th { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px }
   .trend .lbl { font:500 11px/1.3 var(--mono); color:var(--ink); min-height:1.3em }
@@ -322,7 +360,8 @@
     #panel { width:100%; height:66%; top:auto; bottom:0; border-left:0; border-top:1px solid var(--line);
              border-radius:14px 14px 0 0; transform:translateY(105%); padding-top:0 }
     #panel.open { transform:none }
-    body.sheet #count, body.sheet #hlbtn, body.sheet #highlights { display:none !important }
+    body.sheet #hlbtn, body.sheet #highlights { display:none !important }
+    #bar .row2 .key { flex:none }
     .grab { display:block; width:36px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0 }
     #panel header { padding-top:10px }
     .legend { grid-template-columns:1fr }
@@ -340,18 +379,23 @@
 <div id="bar">
   <div class="row">
     <input id="q" type="search" autocomplete="off" data-i18n-ph="search">
-    <button class="key" id="wallbtn" data-i18n="wall" data-i18n-title="wallTitle">Wall</button>
+    <button class="key" id="wallbtn" data-i18n-title="wallTitle"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/></svg><span data-i18n="wall">Cameras</span></button>
     <button class="key" id="filtersbtn" aria-expanded="false" aria-controls="filters"><span class="lamp"></span><span data-i18n="layers">Layers</span></button>
     <label class="key" id="winwrap" data-i18n-title="winTitle"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><select id="win" data-i18n-aria="winTitle"><option value="1">1 h</option><option value="3">3 h</option><option value="6">6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></label>
-    <button class="key" id="refreshbtn" data-i18n-aria="refresh" data-i18n-title="refresh"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
-    <button class="key" id="langbtn" lang="th">TH</button>
   </div>
-  <div id="count" class="mono" data-i18n="loading">Loading cameras…</div>
+  <div class="row row2">
   <button id="hlbtn" aria-expanded="false" aria-controls="highlights">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
-    <span data-i18n="hlBtn">Highlights for this view</span><span class="chev" aria-hidden="true">▾</span></button>
+    <span data-i18n="hlBtn">Summary</span><span class="chev" aria-hidden="true">▾</span></button>
+    <button class="key" id="refreshbtn" data-i18n-aria="refresh" data-i18n-title="refresh"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg><span class="label-long" data-i18n="refreshShort">Refresh</span></button>
+    <button class="key" id="langbtn" lang="th">TH</button>
+  </div>
   <div id="highlights" hidden>
+    <h2 class="sec-h" style="margin-top:0" data-i18n="secView">In this map view</h2>
     <div id="hlbody"></div>
+    <h2 class="sec-h" data-i18n="secAll">All of Thailand</h2>
+    <ul id="count"><li data-i18n="loading">Loading…</li></ul>
+    <details class="keymap"><summary data-i18n="keyTitle">What the symbols mean</summary><ul id="keymap"></ul></details>
   </div>
   <div id="filters" hidden>
     <div class="group">
@@ -453,10 +497,17 @@ const SOURCES = {
    switch too, since thaiwater publishes both. */
 const I18N = {
   en: {
-    title: "Thai Flood Cams", search: "Search", wall: "Wall",
+    title: "Thai Flood Cams", search: "Search a place or camera", wall: "Cameras", refreshShort: "Refresh",
+    secView: "In this map view", secAll: "All of Thailand", keyTitle: "What the symbols mean",
+    kRiver: "River level: blue = high, red = over the bank", kCanal: "Bangkok canal: orange = alert, red = critical",
+    kRoad: "Road flooding, water depth in cm", kTunnel: "Underpass flooded (cm)", kTrend: "▲ rising · ▼ falling · → steady",
+    kRainK: "Heavy rain in the last 24 h (mm)", kDamK: "Major dam, % full (orange 80%+, red over 100%)",
+    kRep: "Resident flood report (Traffy)", kHwy: "Flooded highway (red = impassable)", kEv: "Road flood report (Longdo)",
+    kSh: "Shelter", kPk: "Free flood parking", kCam: "Camera (green = live video)", pNearCams: "Cameras nearby",
+    camLive: "▶ Live video", camOpen: "Open camera ↗",
     wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
     hSensors: "Water sensors", hReports: "Reports", hWeather: "Weather",
-    hlBtn: "Highlights for this view", hlNone: "Nothing flagged in this view. Zoom out or turn on more layers.",
+    hlBtn: "Summary", hlNone: "Nothing flagged in this view. Zoom out or turn on more layers.",
     hlRivers: "Rivers", hlCanals: "Canals", hlRoads: "Roads", hlRain: "Rain", hlReports: "Residents", hlHwy: "Highways",
     hlDams: "Dams", hlCams: "Cameras", hlEvents: "Road reports",
     up: n => `↑ ${n} rising`, down: n => `↓ ${n} falling`, flat: n => `→ ${n} steady`,
@@ -546,8 +597,8 @@ const I18N = {
     locate: "Show my location", locDenied: "Location is blocked. Allow it for this site in your browser settings.",
     locFail: "Couldn't find your location. Try again outdoors or with Wi-Fi on.",
     close: "Close", wallHint: "Cameras in view. Tap one to open it.", backToMap: "Back to map",
-    langBtn: "TH", langAria: "เปลี่ยนเป็นภาษาไทย",
-    count: (n, l) => `${n} cameras · ${l} live`,
+    langBtn: "ไทย", langAria: "เปลี่ยนเป็นภาษาไทย",
+    count: (n, l) => `${n} cameras, ${l} with live video`,
     floodNote: (f, on) => (on.river && f.riverAt ? ` · rivers ${when(f.riverAt)}: ${f.over} over bank, ${f.high} high` : "")
       + (on.canal && f.canalAt ? ` · canals ${when(f.canalAt)}: ${f.ccrit} critical, ${f.calert} alert` : "")
       + (on.road ? (f.roadStale ? ` · Bangkok road sensors last reported ${when(f.roadAt)}` : ` · ${f.wet} roads flooded (${when(f.roadAt)})`) : "")
@@ -567,10 +618,17 @@ const I18N = {
     road: cm => `${cm} cm of water on the road`, tipRoad: cm => `${cm} cm on road`, roadSensor: "BMA drainage sensor",
   },
   th: {
-    title: "กล้องติดตามน้ำท่วม", search: "ค้นหา", wall: "รวมกล้อง",
+    title: "กล้องติดตามน้ำท่วม", search: "ค้นหาสถานที่หรือกล้อง", wall: "ดูกล้อง", refreshShort: "รีเฟรช",
+    secView: "ในแผนที่ที่แสดงอยู่", secAll: "ทั่วประเทศ", keyTitle: "ความหมายของสัญลักษณ์",
+    kRiver: "ระดับน้ำในแม่น้ำ: น้ำเงิน = น้ำมาก, แดง = ล้นตลิ่ง", kCanal: "คลองใน กทม.: ส้ม = เฝ้าระวัง, แดง = วิกฤต",
+    kRoad: "น้ำท่วมถนน ความลึก (ซม.)", kTunnel: "อุโมงค์ทางลอดน้ำท่วม (ซม.)", kTrend: "▲ เพิ่มขึ้น · ▼ ลดลง · → ทรงตัว",
+    kRainK: "ฝนตกหนักใน 24 ชม. (มม.)", kDamK: "เขื่อนใหญ่ % ความจุ (ส้ม 80%+, แดง เกิน 100%)",
+    kRep: "ประชาชนแจ้งน้ำท่วม (Traffy)", kHwy: "ทางหลวงน้ำท่วม (แดง = ผ่านไม่ได้)", kEv: "รายงานน้ำท่วมถนน (Longdo)",
+    kSh: "ที่พักพิง", kPk: "จุดจอดรถหนีน้ำฟรี", kCam: "กล้อง (เขียว = ภาพสด)", pNearCams: "กล้องใกล้จุดนี้",
+    camLive: "▶ ภาพสด", camOpen: "เปิดกล้อง ↗",
     wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
     hSensors: "เซนเซอร์วัดน้ำ", hReports: "รายงาน", hWeather: "สภาพอากาศ",
-    hlBtn: "สรุปพื้นที่ที่แสดง", hlNone: "ไม่มีจุดที่น่ากังวลในพื้นที่นี้ ลองซูมออกหรือเปิดชั้นข้อมูลเพิ่ม",
+    hlBtn: "สรุปสถานการณ์", hlNone: "ไม่มีจุดที่น่ากังวลในพื้นที่นี้ ลองซูมออกหรือเปิดชั้นข้อมูลเพิ่ม",
     hlRivers: "แม่น้ำ", hlCanals: "คลอง", hlRoads: "ถนน", hlRain: "ฝน", hlReports: "ประชาชน", hlHwy: "ทางหลวง",
     hlDams: "เขื่อน", hlCams: "กล้อง", hlEvents: "รายงานถนน",
     up: n => `↑ เพิ่ม ${n}`, down: n => `↓ ลด ${n}`, flat: n => `→ ทรงตัว ${n}`,
@@ -659,8 +717,8 @@ const I18N = {
     locate: "แสดงตำแหน่งของฉัน", locDenied: "ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง เปิดสิทธิ์ให้เว็บนี้ในการตั้งค่าเบราว์เซอร์",
     locFail: "หาตำแหน่งไม่ได้ ลองใหม่อีกครั้งในที่โล่งหรือเปิด Wi-Fi",
     close: "ปิด", wallHint: "กล้องในพื้นที่ที่แสดง แตะเพื่อเปิดดู", backToMap: "กลับไปที่แผนที่",
-    langBtn: "EN", langAria: "Switch to English",
-    count: (n, l) => `กล้อง ${n} · สด ${l}`,
+    langBtn: "English", langAria: "Switch to English",
+    count: (n, l) => `กล้อง ${n} ตัว (ภาพสด ${l})`,
     floodNote: (f, on) => (on.river && f.riverAt ? ` · แม่น้ำ ${when(f.riverAt)}: ล้นตลิ่ง ${f.over} · น้ำมาก ${f.high}` : "")
       + (on.canal && f.canalAt ? ` · คลอง ${when(f.canalAt)}: วิกฤต ${f.ccrit} · เฝ้าระวัง ${f.calert}` : "")
       + (on.road ? (f.roadStale ? ` · เซนเซอร์ถนน กทม. รายงานล่าสุด ${when(f.roadAt)}` : ` · ถนนน้ำท่วม ${f.wet} จุด (${when(f.roadAt)})`) : "")
@@ -982,7 +1040,7 @@ function draw() {
   }
   map.addLayer(markers);
   const onMap = list.filter(c => c.y != null);   // streams with no location aren't shown anywhere
-  $("#count").textContent = t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
+  $("#count").innerHTML = (t("count", onMap.length.toLocaleString(), onMap.filter(isLive).length.toLocaleString())
     + (flood === "error" ? t("floodErr") : flood ? t("floodNote", flood, floodOn()) : "")
     + (reports.length && $("#reports").checked ? t("repNote", repVisible().length.toLocaleString(), winH)
        // the feed goes down now and then; an empty map shouldn't read as "no flooding"
@@ -991,7 +1049,8 @@ function draw() {
     + (events.length && $("#l-events").checked ? t("evNote", evVisible().length) : "")
     + (dams.length && $("#l-dam").checked ? t("damNote", dams.filter(d => d.pct >= 80).length) : "")
     + (places.length && $("#l-places").checked ? t("plNote", places.filter(p => p.category === "shelter").length, places.filter(p => p.category !== "shelter").length) : "")
-    + (rain.length && $("#l-rain").checked ? t("rainNote", rainVisible().length, rainVisible().filter(g => g.mm24 >= 90).length) : "");
+    + (rain.length && $("#l-rain").checked ? t("rainNote", rainVisible().length, rainVisible().filter(g => g.mm24 >= 90).length) : ""))
+    .split(" · ").filter(Boolean).map(x => `<li>${esc(x.replace(/^[\s·-]+/, ""))}</li>`).join("");
   lamp();
   if (typeof scheduleHighlights === "function") scheduleHighlights();
 }
@@ -1149,13 +1208,15 @@ async function loadDams() {
   dams = await r.json();
   renderDams(); draw();
 }
+// a dam wall holding back water; the colour says how full
+const DAM_SVG = '<svg viewBox="0 0 16 14" aria-hidden="true"><path d="M0 4.5h8.5V13H0z" fill="currentColor" opacity=".35"/><path d="M8.5 1h3.2L15 13H8.5z" fill="currentColor"/></svg>';
 function renderDams() {
   damLayer.clearLayers();
   const n = v => v == null ? "–" : (+v).toLocaleString(lang === "th" ? "th-TH" : "en-GB", { maximumFractionDigits: 1 });
   for (const d of dams) {
-    const name = bi({ th: d.name_th, en: d.name_en }), lv = damLevel(d.pct), fill = Math.max(4, Math.min(100, d.pct || 0));
+    const name = bi({ th: d.name_th, en: d.name_en }), lv = damLevel(d.pct);
     L.marker([d.lat, d.lon], { zIndexOffset: 400, pane: "sensors",
-        icon: L.divIcon({ className: "", iconSize: [px(17), px(22)], html: `<span class="dam ${lv}"><i style="height:${fill}%"></i></span>` }) })
+        icon: L.divIcon({ className: "", iconSize: [0, 0], html: `<span class="dampill ${lv}">${DAM_SVG}${Math.round(d.pct)}%</span>` }) })
       .bindTooltip(`${name}: ${t("damFull", n(d.pct))}`, { direction: "top", offset: [0, -10] })
       .bindPopup(() => `<b>${esc(name)}</b><br>${t("damTitle")}`
         + `<div class="dampct ${lv}"><i style="width:${Math.min(100, d.pct || 0)}%"></i></div>`
@@ -1688,7 +1749,26 @@ map.on("popupopen", e => {
     });
   }
   box.querySelectorAll(".trend").forEach(b => mountTrend(b, 24, null));
+  if (ll) nearCams(box, ll.lat, ll.lng);
 });
+// Up to 4 cameras within 2 km, as pictures: a snapshot where the camera has one,
+// a YouTube still, or a plain tile for live-video-only cameras. Tap = open it.
+function nearCams(box, lat, lon) {
+  const nc = cams.filter(c => c.y != null).map(c => [distKm(lat, lon, c.y, c.x), c]).filter(([d]) => d <= 2)
+    .sort((a, z) => a[0] - z[0]).slice(0, 4);
+  if (!nc.length) return;
+  const km = d => d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
+  const sec = document.createElement("section");
+  sec.className = "nearcams";
+  sec.innerHTML = `<h3>${t("pNearCams")}</h3><div class="camthumbs">` + nc.map(([d, c], i) => {
+    const img = c.i || (c.yt ? `https://i.ytimg.com/vi/${encodeURIComponent(c.yt)}/mqdefault.jpg` : null);
+    return `<button data-i="${i}">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ""}`
+      + `<i class="ph${img ? " fb" : ""}">${c.h ? t("camLive") : t("camOpen")}</i><span>${esc(c.n)} · ${km(d)}</span></button>`;
+  }).join("") + "</div>";
+  sec.querySelectorAll("img").forEach(im => im.onerror = () => im.parentElement.classList.add("noimg"));
+  sec.querySelectorAll("button").forEach(b => b.onclick = () => openCam(nc[+b.dataset.i][1]));
+  box.append(sec);
+}
 
 let floodData = null, flood = null;   // flood: null (off) | "error" | {counts, times}
 const bkkTime = str => Date.parse(String(str).replace(" ", "T").slice(0, 16) + "+07:00");
@@ -2049,8 +2129,9 @@ $("#win").onchange = e => {
 // Once someone opens or closes it, that choice wins.
 const HL_KEY = "livecam.highlights";
 const setHl = open => { $("#highlights").hidden = !open; $("#hlbtn").setAttribute("aria-expanded", open); };
-const hlDefault = !matchMedia("(max-width: 720px)").matches;
-try { const v = localStorage.getItem(HL_KEY); setHl(v == null ? hlDefault : v === "1"); } catch { setHl(hlDefault); }
+const desktop = !matchMedia("(max-width: 720px)").matches;
+// desktop: always open in the side pane; phones: closed unless opened before
+try { const v = localStorage.getItem(HL_KEY); setHl(desktop || v === "1"); } catch { setHl(desktop); }
 $("#hlbtn").onclick = () => {
   const open = $("#highlights").hidden;
   setHl(open);
@@ -2121,6 +2202,19 @@ $("#filters").addEventListener("change", e => {
   lamp();
 });
 
+function renderKey() {
+  const box = (w, h, html, cls = "") => `<span class="box ${cls}" style="width:${w}px;height:${h}px">${html}</span>`;
+  const pill = (c, sh, val, tr) => `<span class="spill" style="--c:${css(c)}"><i class="sh ${sh}"></i>${val ? `<em>${val}</em>` : ""}<b class="t ${tr[0]}">${tr[1]}</b></span>`;
+  const items = [
+    [pill("--wl-over", "", "", ["up", "▲"]), "kRiver"], [pill("--alert", "dia", "", ["flat", "→"]), "kCanal"],
+    [pill("--road", "", "20", ["down", "▼"]), "kRoad"], [pill("--road", "ring", "15", ["na", "–"]), "kTunnel"],
+    [`<i class="rainpill r2">120</i>`, "kRainK"], [`<span class="dampill high">${DAM_SVG}87%</span>`, "kDamK"],
+    [box(13, 13, '<i class="rep"></i>'), "kRep"], [`<i class="hwy closed">31</i>`, "kHwy"], [box(19, 17, '<i class="lev"></i>'), "kEv"],
+    [box(20, 20, '<i class="plc sh">⌂</i>'), "kSh"], [box(20, 20, '<i class="plc">P</i>'), "kPk"], [box(22, 22, LENS, "cam live"), "kCam"],
+  ];
+  $("#keymap").innerHTML = items.map(([ic, k]) => `<li><span class="ic">${ic}</span><span>${esc(t(k))}</span></li>`).join("")
+    + `<li><span class="ic"></span><span>${esc(t("kTrend"))}</span></li>`;
+}
 function applyLang() {
   document.documentElement.lang = lang;
   document.title = t("title");
@@ -2138,6 +2232,7 @@ function applyLang() {
   if (events.length) renderEvents();
   if (hwy.length) renderHwy();
   if (places.length) renderPlaces();
+  renderKey();
   for (const o of $("#win").options) o.textContent = t("winOpt", o.value);
   $("#langbtn").textContent = t("langBtn");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
