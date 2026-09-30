@@ -108,6 +108,10 @@
   #p-place.detail .rep-state { font-size:13px; padding:4px 8px }
   /* cameras near the selected spot */
   #p-place .nearcams h3 { margin:18px 0 8px }
+  .warns { margin:2px 0 4px; padding-left:18px; display:grid; gap:4px }
+  .warns-else summary { cursor:pointer; color:var(--dim); font-size:13px; padding:4px 0 }
+  .around { margin-top:18px; padding-top:4px; border-top:1px solid var(--line); display:grid; gap:14px }
+  .around .sec-h { margin:10px 0 0 }
   .camthumbs { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px }
   .camthumbs button { all:unset; cursor:pointer; border-radius:8px; overflow:hidden; background:var(--well); display:grid }
   .camthumbs button:focus-visible { outline:2px solid var(--accent) }
@@ -174,9 +178,8 @@
     #bar { top:0; left:0; bottom:0; right:auto; width:400px; max-width:none; border:0; border-right:1px solid var(--line);
            border-radius:0; overflow:auto; padding:12px 12px calc(12px + env(safe-area-inset-bottom, 0px)) }
     #map { left:400px }
-    #bar #hlbtn { display:none }
-    #highlights { max-height:none; border-top:0; padding:10px 2px 4px }
-    #filters { max-height:none }
+    #bar #highlights, #bar #filters { max-height:none; overflow:visible }
+    #bar #highlights { padding:12px 2px 4px }
     #bar .row { flex-wrap:wrap } #q { flex-basis:100% } #bar .row .key { flex:1 1 auto; justify-content:center }
   }
   /* phones: search gets its own row so the buttons don't squeeze it */
@@ -342,7 +345,7 @@
   .trend .seg2 { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; flex:none }
   .trend .seg2 button { font:11px var(--mono); border:0; background:none; color:var(--dim); padding:3px 7px; cursor:pointer }
   .trend .seg2 button[aria-pressed="true"] { background:var(--ink); color:var(--bg) }
-  .trend svg { display:block; width:100%; height:96px; overflow:visible; touch-action:none }
+  .trend svg { display:block; width:100%; height:auto; overflow:visible; touch-action:none }
   .trend .ax { fill:var(--dim); font:10px var(--mono) }
   .trend .ref { stroke:var(--wl-over); stroke-width:1; stroke-dasharray:3 3 }
   .trend .ln { fill:none; stroke:var(--ink); stroke-width:2; stroke-linejoin:round; stroke-linecap:round }
@@ -408,11 +411,11 @@
     </div>
     <div class="group">
       <h3 data-i18n="hReports">Reports</h3>
-      <label class="switch"><input type="checkbox" id="reports" checked><span><span data-i18n="repLayer">Residents' flood reports</span><small data-i18n="repSrc">Traffy Fondue (BMA) · every 10 min</small></span></label>
+      <label class="switch"><input type="checkbox" id="reports"><span><span data-i18n="repLayer">Residents' flood reports</span><small data-i18n="repSrc">Traffy Fondue (BMA) · every 10 min</small></span></label>
       <label class="switch"><input type="checkbox" id="l-hwy" checked><span><span data-i18n="lHwy">Highway flooding</span><small data-i18n="lHwySrc">Dept. of Highways · passable or not · every 30 min</small></span></label>
       <label class="switch"><input type="checkbox" id="l-events" checked><span><span data-i18n="lEvents">Road flood reports</span><small data-i18n="lEventsSrc">Longdo Traffic (iTIC) · every 10 min</small></span></label>
       <label class="switch"><input type="checkbox" id="photos" checked><span><span data-i18n="photosLayer">Community photos</span><small data-i18n="photosSrc">Posted by visitors · kept 48 h</small></span></label>
-      <label class="switch"><input type="checkbox" id="l-places" checked><span><span data-i18n="lPlaces">Shelters and free flood parking</span><small data-i18n="lPlacesSrc">flood69.peoplesparty.or.th · crowd-sourced list · every 10 min</small></span></label>
+      <label class="switch"><input type="checkbox" id="l-places"><span><span data-i18n="lPlaces">Shelters and free flood parking</span><small data-i18n="lPlacesSrc">flood69.peoplesparty.or.th · crowd-sourced list · every 10 min</small></span></label>
     </div>
     <div class="group">
       <h3 data-i18n="hWeather">Weather</h3>
@@ -503,7 +506,7 @@ const I18N = {
     kRoadK: "Road flooding, water depth in cm", kTunnel: "Underpass flooded (cm)", kTrendK: "▲ rising · ▼ falling · → steady",
     kRainK: "Heavy rain in the last 24 h (mm)", kDamK: "Major dam, % full (orange 80%+, red over 100%)",
     kRep: "Resident flood report (Traffy)", kHwy: "Flooded highway (red = impassable)", kEv: "Road flood report (Longdo)",
-    kSh: "Shelter", kPk: "Free flood parking", kCam: "Camera (green = live video)", pNearCams: "Cameras nearby",
+    aroundHere: "Around here", kSh: "Shelter", kPk: "Free flood parking", kCam: "Camera (green = live video)", pNearCams: "Cameras nearby",
     camLive: "▶ Live video", camOpen: "Open camera ↗",
     wallTitle: "Every camera in view, as a grid", layers: "Layers", loading: "Loading cameras…",
     hSensors: "Water sensors", hReports: "Reports", hWeather: "Weather",
@@ -551,7 +554,8 @@ const I18N = {
     plUpdated: a => `Listed or updated ${a}`, plMaps: "Open in Google Maps ↗", plStatus: (v, n) => `reported ${v}${n ? ` by ${n}` : ""}`,
     plVia: "From the People's Party flood site's crowd-sourced list (flood69.peoplesparty.or.th). Call ahead before you go.",
     plNote: (s, p) => ` · ${s} shelters, ${p} free parking spots`, hlPlaces: "Shelters", hlPlacesV: (s, p) => `${s} shelters · ${p} free parking spots in view`,
-    hlWarn: "Warnings", hlWarnNote: "Official alerts from thaiwater.net, all of Thailand",
+    hlWarn: "Warnings", hlWarnNote: "Official alerts from thaiwater.net (in Thai)",
+    hlWarnMore: n => `and ${n} more in this area`, hlWarnElse: n => `${n} alerts elsewhere in Thailand`,
     lRain: "Heavy rain, last 24 h", lRainSrc: "thaiwater.net + BMA rain gauges · 35 mm or more",
     kRain1: "Heavy rain, 35–90 mm / 24 h", kRain2: "Very heavy rain, 90 mm+ / 24 h",
     rainTitle: "Rain gauge", rain24: mm => `${mm} mm in the last 24 h`, rain1: mm => `${mm} mm in the last hour`,
@@ -624,7 +628,7 @@ const I18N = {
     kRoadK: "น้ำท่วมถนน ความลึก (ซม.)", kTunnel: "อุโมงค์ทางลอดน้ำท่วม (ซม.)", kTrendK: "▲ เพิ่มขึ้น · ▼ ลดลง · → ทรงตัว",
     kRainK: "ฝนตกหนักใน 24 ชม. (มม.)", kDamK: "เขื่อนใหญ่ % ความจุ (ส้ม 80%+, แดง เกิน 100%)",
     kRep: "ประชาชนแจ้งน้ำท่วม (Traffy)", kHwy: "ทางหลวงน้ำท่วม (แดง = ผ่านไม่ได้)", kEv: "รายงานน้ำท่วมถนน (Longdo)",
-    kSh: "ที่พักพิง", kPk: "จุดจอดรถหนีน้ำฟรี", kCam: "กล้อง (เขียว = ภาพสด)", pNearCams: "กล้องใกล้จุดนี้",
+    aroundHere: "รอบ ๆ จุดนี้", kSh: "ที่พักพิง", kPk: "จุดจอดรถหนีน้ำฟรี", kCam: "กล้อง (เขียว = ภาพสด)", pNearCams: "กล้องใกล้จุดนี้",
     camLive: "▶ ภาพสด", camOpen: "เปิดกล้อง ↗",
     wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
     hSensors: "เซนเซอร์วัดน้ำ", hReports: "รายงาน", hWeather: "สภาพอากาศ",
@@ -672,7 +676,8 @@ const I18N = {
     plUpdated: a => `เพิ่มหรือแก้ไข ${a}`, plMaps: "เปิดใน Google Maps ↗", plStatus: (v, n) => `แจ้งว่า ${({ open: "เปิด", full: "เต็ม", closed: "ปิด" })[v] || v}${n ? ` (${n} คน)` : ""}`,
     plVia: "จากรายชื่อที่ประชาชนช่วยกันแจ้งในเว็บติดตามน้ำท่วมของพรรคประชาชน (flood69.peoplesparty.or.th) โปรดโทรสอบถามก่อนเดินทาง",
     plNote: (s, p) => ` · ที่พักพิง ${s} แห่ง จุดจอดรถฟรี ${p} แห่ง`, hlPlaces: "ที่พักพิง", hlPlacesV: (s, p) => `ที่พักพิง ${s} · จุดจอดรถฟรี ${p} ในแผนที่นี้`,
-    hlWarn: "คำเตือน", hlWarnNote: "ประกาศเตือนจาก thaiwater.net ทั่วประเทศ",
+    hlWarn: "คำเตือน", hlWarnNote: "ประกาศเตือนจาก thaiwater.net",
+    hlWarnMore: n => `และอีก ${n} รายการในพื้นที่นี้`, hlWarnElse: n => `ประกาศเตือนในพื้นที่อื่น ${n} รายการ`,
     lRain: "ฝนตกหนัก 24 ชม. ล่าสุด", lRainSrc: "สถานีวัดฝน thaiwater.net และ กทม. · 35 มม. ขึ้นไป",
     kRain1: "ฝนตกหนัก 35–90 มม. / 24 ชม.", kRain2: "ฝนตกหนักมาก 90 มม. ขึ้นไป / 24 ชม.",
     rainTitle: "สถานีวัดฝน", rain24: mm => `ฝน ${mm} มม. ใน 24 ชม.`, rain1: mm => `ฝน ${mm} มม. ในชั่วโมงล่าสุด`,
@@ -940,7 +945,7 @@ function localClock(lon) {
 }
 
 /* ---------- map ---------- */
-const map = L.map("map", { worldCopyJump: true, zoomControl: false }).setView([13.5, 100.9], 6);  // Thailand
+const map = L.map("map", { worldCopyJump: true, zoomControl: false }).setView([13.8, 100.52], 11);  // Bangkok + Nonthaburi
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
 // "Locate me": the browser asks the viewer for permission; nothing leaves the device.
@@ -968,6 +973,17 @@ map.on("locationfound", e => {
   showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("myLocation") });
   track("locate");
 });
+// On load: jump to the viewer (the browser asks first; nothing leaves the device),
+// unless they've already moved the map or opened a camera link.
+let userMoved = false;
+map.once("dragstart zoomstart", () => userMoved = true);
+if (navigator.geolocation && !/^#cam-/.test(location.hash)) navigator.geolocation.getCurrentPosition(pos => {
+  if (userMoved) return;
+  const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+  if (ll.lat < 5 || ll.lat > 21 || ll.lng < 97 || ll.lng > 106) return;   // outside Thailand: keep Bangkok
+  map.setView(ll, matchMedia("(max-width: 720px)").matches ? 12 : 13);
+  me?.remove(); me = L.marker(ll, { icon: L.divIcon({ className: "me", iconSize: [16, 16] }), zIndexOffset: 1100, interactive: false }).addTo(map);
+}, () => {}, { timeout: 10000, maximumAge: 300000 });
 map.on("locationerror", e => {
   $("#locate").classList.remove("busy");
   toast(e.code === 1 ? t("locDenied") : t("locFail"));
@@ -1430,7 +1446,7 @@ async function postDraft() {
   }
 }
 
-function placeSummary(p) {
+function placeSummary(p, noCams) {
   const near = (list, lat, lon, km) => list.map(r => [distKm(p.y, p.x, lat(r), lon(r)), r])
     .filter(([d]) => d <= km).sort((a, z) => a[0] - z[0]);
   const kmTxt = d => d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
@@ -1472,8 +1488,8 @@ function placeSummary(p) {
     + np.map(([d, ph]) => `<button data-photo="${esc(ph.id)}" title="${esc(`${kmTxt(d)} · ${ago(ph.created_at)}`)}"><img src="${esc(photoUrl(ph, true))}" alt="${esc(ph.caption || t("photoTitle"))}" loading="lazy"></button>`).join("")
     + "</div></section>");
   // every camera nearby, whatever the filters say - this is "what can I see around here"
-  const nc = near(cams.filter(c => c.y != null), c => c.y, c => c.x, 2).slice(0, 8);
-  out.push(`<section><h3>${t("pCams")}</h3>` + (nc.length ? "<ul>" + nc.map(([d, c]) =>
+  const nc = noCams ? [] : near(cams.filter(c => c.y != null), c => c.y, c => c.x, 2).slice(0, 8);
+  if (!noCams) out.push(`<section><h3>${t("pCams")}</h3>` + (nc.length ? "<ul>" + nc.map(([d, c]) =>
     row(isLive(c) ? css("--live") : css("--still"), c.n, `${kmTxt(d)} · ${srcName(c.s)}`,
         isLive(c) ? t("liveVideo") : c.link ? "BMA ↗" : t("stillImage"), cams.indexOf(c))).join("") + "</ul>"
     : `<p class="none">${t("pNone")}</p>`) + "</section>");
@@ -1566,10 +1582,14 @@ $("#rand").onclick = () => {
   const c = placed[Math.floor(Math.random() * placed.length)];
   map.setView([c.y, c.x], 12); openCam(c);
 };
+let hlBeforeLayers = null;
 $("#filtersbtn").onclick = () => {
   const show = $("#filters").hidden;
   $("#filters").hidden = !show;
   $("#filtersbtn").setAttribute("aria-expanded", show);
+  // Layers and Summary take turns, so the pane never holds both at once
+  if (show) { hlBeforeLayers = !$("#highlights").hidden; setHl(false); }
+  else if (hlBeforeLayers) { setHl(true); scheduleHighlights(); }
 };
 map.on("click", () => { $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false); });
 $("#wallclose").onclick = closeWall;
@@ -1668,7 +1688,8 @@ async function mountTrend(box, hours = 24, popup = box._popup) {
   if (!box.isConnected) return;
   const { pts, ref } = data;
   if (pts.length < 2) { box.querySelector(".msg").textContent = spec.type === "river" ? t("noTrend") : t("noTrendBma"); return; }
-  const W = 260, H = 96, L0 = 36, B = 16, T = 6;
+  // as wide as its box (the side panel is wider than the old popup), a bit taller when wide
+  const W = Math.max(260, Math.round(box.clientWidth) || 260), H = Math.round(Math.min(170, Math.max(96, W * 0.42))), L0 = 36, B = 16, T = 6;
   const unit = spec.unit || "m", bars = spec.type === "rain";
   const fmtV = v => unit === "mm" ? `${(+v).toFixed(1)} ${t("mmh")}` : `${(+v).toFixed(unit === "cm" ? 1 : 2)} ${unit === "cm" ? t("cm") : "m"}`;
   const vals = pts.map(p => p[1]).concat(ref != null ? [ref] : []);
@@ -1749,7 +1770,14 @@ map.on("popupopen", e => {
     });
   }
   box.querySelectorAll(".trend").forEach(b => mountTrend(b, 24, null));
-  if (ll) nearCams(box, ll.lat, ll.lng);
+  if (ll) {
+    nearCams(box, ll.lat, ll.lng);
+    const more = document.createElement("div");
+    more.className = "around";
+    more.innerHTML = `<h2 class="sec-h">${t("aroundHere")}</h2>` + placeSummary({ y: ll.lat, x: ll.lng }, true);
+    more.querySelectorAll("[data-photo]").forEach(b => b.onclick = () => openPhoto(photos.find(ph => ph.id === b.dataset.photo)));
+    box.append(more);
+  }
 });
 // Up to 4 cameras within 2 km, as pictures: a snapshot where the camera has one,
 // a YouTube still, or a plain tile for live-video-only cameras. Tap = open it.
@@ -2039,8 +2067,17 @@ async function updateHighlights() {
     return [x, v];
   }).filter(x => x[1] != null && Math.abs(x[1]) <= limit);
 
-  const warns = (floodData?.warnings || []).filter(w => inWin(bkkTime(w.datetime)));
-  if (warns.length) row(t("hlWarn"), warns.map(w => `<div>${esc(w.message)}</div>`).join("") + `<small>${t("hlWarnNote")}</small>`);
+  // thaiwater packs many station alerts into one message: split them, keep the ones
+  // for provinces on screen, and fold the rest away
+  const provs = new Set([...(floodData?.wl.waterlevel_data.data || []).filter(r => inView(r.station.tele_station_lat, r.station.tele_station_long)).map(r => r.geocode?.province_name?.th),
+    ...rain.filter(g => inView(g.lat, g.lon)).map(g => g.province_th)].filter(Boolean).map(p => p.trim()));
+  const alerts = (floodData?.warnings || []).filter(w => inWin(bkkTime(w.datetime)))
+    .flatMap(w => w.message.split(/(?=สถานี)|(?=\[เสี่ยง)/).map(x => x.trim()).filter(x => x.length > 12));
+  const here = alerts.filter(a => [...provs].some(p => a.includes(p))), elsewhere = alerts.length - here.length;
+  if (alerts.length) row(t("hlWarn"), (here.length ? `<ul class="warns">${here.slice(0, 6).map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : "")
+    + (here.length > 6 ? `<small>${esc(t("hlWarnMore", here.length - 6))}</small>` : "")
+    + (elsewhere ? `<details class="warns-else"><summary>${esc(t("hlWarnElse", elsewhere))}</summary><ul class="warns">${alerts.filter(a => !here.includes(a)).map(a => `<li>${esc(a)}</li>`).join("")}</ul></details>` : "")
+    + `<small>${t("hlWarnNote")}</small>`);
   if (cp.length) {
     const arrow = (v, eps, fmt) => v == null ? "" : v > eps ? ` <b class="up">▲${fmt(v)}</b>` : v < -eps ? ` <b class="down">▼${fmt(-v)}</b>` : " →";
     const line = (name, ll, val, over, tr) => `<div class="cp" data-ll="${ll}"><span class="cp-n">${esc(name)}</span>`
@@ -2130,10 +2167,10 @@ $("#win").onchange = e => {
 const HL_KEY = "livecam.highlights";
 const setHl = open => { $("#highlights").hidden = !open; $("#hlbtn").setAttribute("aria-expanded", open); };
 const desktop = !matchMedia("(max-width: 720px)").matches;
-// desktop: always open in the side pane; phones: closed unless opened before
-try { const v = localStorage.getItem(HL_KEY); setHl(desktop || v === "1"); } catch { setHl(desktop); }
+try { const v = localStorage.getItem(HL_KEY); setHl(v == null ? desktop : v === "1"); } catch { setHl(desktop); }
 $("#hlbtn").onclick = () => {
   const open = $("#highlights").hidden;
+  if (open && !$("#filters").hidden) { $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false); }
   setHl(open);
   try { localStorage.setItem(HL_KEY, open ? "1" : "0"); } catch {}
   if (open) updateHighlights();
