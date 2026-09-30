@@ -390,7 +390,7 @@
     #panel { width:100%; height:66%; top:auto; bottom:0; border-left:0; border-top:1px solid var(--line);
              border-radius:14px 14px 0 0; transform:translateY(105%); padding-top:0 }
     #panel.open { transform:none }
-    body.sheet #hlbtn, body.sheet #highlights { display:none !important }
+    body.sheet #highlights { display:none !important }
 
     .grab { display:block; width:44px; height:5px; border-radius:3px; background:var(--dim); opacity:.5; margin:0 auto;
             box-sizing:content-box; border:10px solid transparent; background-clip:padding-box; cursor:grab }
@@ -1604,6 +1604,7 @@ $("#rand").onclick = () => {
 let hlBeforeLayers = null;
 $("#filtersbtn").onclick = () => {
   const show = $("#filters").hidden;
+  if (show && $("#panel").classList.contains("open")) $("#close").click();
   $("#filters").hidden = !show;
   $("#filtersbtn").setAttribute("aria-expanded", show);
   // Layers and Summary take turns, so the pane never holds both at once
@@ -1797,7 +1798,20 @@ setBarH(); addEventListener("resize", setBarH);
     el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
   }
 }
-new MutationObserver(() => document.body.classList.toggle("sheet", $("#panel").classList.contains("open")))
+new MutationObserver(() => {
+  const open = $("#panel").classList.contains("open");
+  document.body.classList.toggle("sheet", open);
+  const phone = matchMedia("(max-width: 720px)").matches;
+  if (!open) {
+    // desktop: closing a node never leaves the pane empty - back to the summary,
+    // unless the viewer had collapsed it themselves
+    let keep = true; try { keep = localStorage.getItem(HL_KEY) !== "0"; } catch {}
+    if (!phone && keep && $("#filters").hidden && $("#highlights").hidden) { setHl(true); scheduleHighlights(); }
+    return;
+  }
+  $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false);
+  if (phone) setHl(false);   // not remembered: it's the node's turn
+})
   .observe($("#panel"), { attributes: true, attributeFilter: ["class"] });
 // Marker details open in the side panel (a bottom sheet on phones) rather than a
 // popup over the map: more room, and the map stays in view. Popup content is built
@@ -2271,6 +2285,11 @@ const setHl = open => { $("#highlights").hidden = !open; $("#hlbtn").setAttribut
 const desktop = !matchMedia("(max-width: 720px)").matches;
 try { const v = localStorage.getItem(HL_KEY); setHl(v == null ? desktop : v === "1"); } catch { setHl(desktop); }
 $("#hlbtn").onclick = () => {
+  if ($("#panel").classList.contains("open")) {   // a node is open: close it, show the summary
+    $("#close").click(); setHl(true);
+    try { localStorage.setItem(HL_KEY, "1"); } catch {}
+    return updateHighlights();
+  }
   const open = $("#highlights").hidden;
   if (open && !$("#filters").hidden) { $("#filters").hidden = true; $("#filtersbtn").setAttribute("aria-expanded", false); }
   setHl(open);
