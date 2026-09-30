@@ -180,10 +180,12 @@
     #map { left:400px }
     #bar #highlights, #bar #filters { max-height:none; overflow:visible }
     #bar #highlights { padding:12px 2px 4px }
-    #bar .row { flex-wrap:wrap } #q { flex-basis:100% } #bar .row .key { flex:1 1 auto; justify-content:center }
+    #bar .row2 .key:not(.ico) { flex:1 1 auto; justify-content:center }
   }
   /* phones: search gets its own row so the buttons don't squeeze it */
-  @media (max-width: 480px) { #bar .row { flex-wrap:wrap } #q { flex-basis:100% } #bar .row .key { flex:1 1 auto; justify-content:center } }
+  @media (max-width: 480px) { #bar .row { gap:5px } .key:not(.ico) { padding:0 9px } #bar .row2 .key:not(.ico) { flex:1 1 auto; justify-content:center }
+    #winwrap svg { display:none } #hlbtn { padding:0 10px } }
+  #hlbtn > svg { display:none }
   #refreshbtn.busy svg { animation:spin .9s linear infinite }
   @keyframes spin { to { transform:rotate(360deg) } }
   .key .lamp { width:7px; height:7px; border-radius:50%; background:var(--line) }
@@ -196,6 +198,8 @@
 
   /* a real button, full width, so it reads as tappable on a phone */
   #bar .row2 { margin-top:6px }
+  .key.ico { width:44px; padding:0; justify-content:center; flex:none }
+  #bar .row2 #hlbtn { flex:1 1 auto; min-width:max-content; justify-content:flex-start }
   #hlbtn { display:flex; align-items:center; gap:8px; flex:1; min-width:0; margin:0; min-height:38px; padding:0 12px;
            border:1px solid var(--line); border-radius:7px; background:var(--well); color:var(--ink);
            font:600 15px/1.2 var(--sans); cursor:pointer; text-align:left; min-height:44px }
@@ -217,10 +221,11 @@
   .chip.up { background:color-mix(in srgb, var(--wl-over) 16%, var(--panel)); color:var(--wl-over) }
   .chip.down { background:color-mix(in srgb, var(--live) 18%, var(--panel)); color:var(--live) }
   .hl-none { color:var(--dim); font-size:13px }
-  .cp { display:grid; grid-template-columns:1fr auto; gap:0 10px; padding:5px 0; border-top:1px dashed var(--line); cursor:pointer; align-items:baseline }
+  /* station name, then its reading underneath: long Thai names don't get squeezed */
+  .cp { display:grid; gap:1px; padding:5px 0; border-top:1px dashed var(--line); cursor:pointer }
   .cp:first-child { border-top:0; padding-top:0 }
   .cp:hover .cp-n { text-decoration:underline }
-  .cp-v { font:12.5px var(--mono); text-align:right }
+  .cp-v { font:13px var(--mono) }
   .cp-v .up { color:var(--wl-over) } .cp-v .down { color:var(--live) }
   .cp-v.over { color:var(--wl-over); font-weight:700 }
   #filters { margin-top:6px; border-top:1px solid var(--line); padding:10px 6px 4px;
@@ -364,7 +369,7 @@
              border-radius:14px 14px 0 0; transform:translateY(105%); padding-top:0 }
     #panel.open { transform:none }
     body.sheet #hlbtn, body.sheet #highlights { display:none !important }
-    #bar .row2 .key { flex:none }
+
     .grab { display:block; width:36px; height:4px; border-radius:2px; background:var(--line); margin:8px auto 0 }
     #panel header { padding-top:10px }
     .legend { grid-template-columns:1fr }
@@ -382,16 +387,16 @@
 <div id="bar">
   <div class="row">
     <input id="q" type="search" autocomplete="off" data-i18n-ph="search">
-    <button class="key" id="wallbtn" data-i18n-title="wallTitle"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/></svg><span data-i18n="wall">Cameras</span></button>
-    <button class="key" id="filtersbtn" aria-expanded="false" aria-controls="filters"><span class="lamp"></span><span data-i18n="layers">Layers</span></button>
-    <label class="key" id="winwrap" data-i18n-title="winTitle"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><select id="win" data-i18n-aria="winTitle"><option value="1">1 h</option><option value="3">3 h</option><option value="6">6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></label>
+    <button class="key ico" id="refreshbtn" data-i18n-aria="refresh" data-i18n-title="refresh"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
+    <button class="key ico" id="langbtn" lang="th"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg></button>
   </div>
   <div class="row row2">
-  <button id="hlbtn" aria-expanded="false" aria-controls="highlights">
+    <button class="key ico" id="wallbtn" data-i18n-title="wallTitle" data-i18n-aria="wallTitle"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="8" height="7" rx="1"/><rect x="13" y="4" width="8" height="7" rx="1"/><rect x="3" y="13" width="8" height="7" rx="1"/><rect x="13" y="13" width="8" height="7" rx="1"/></svg></button>
+    <button class="key" id="filtersbtn" aria-expanded="false" aria-controls="filters"><span class="lamp"></span><span data-i18n="layers">Layers</span></button>
+    <label class="key" id="winwrap" data-i18n-title="winTitle"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><select id="win" data-i18n-aria="winTitle"><option value="1">1 h</option><option value="3">3 h</option><option value="6">6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></label>
+    <button id="hlbtn" aria-expanded="false" aria-controls="highlights">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
     <span data-i18n="hlBtn">Summary</span><span class="chev" aria-hidden="true">▾</span></button>
-    <button class="key" id="refreshbtn" data-i18n-aria="refresh" data-i18n-title="refresh"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg><span class="label-long" data-i18n="refreshShort">Refresh</span></button>
-    <button class="key" id="langbtn" lang="th">TH</button>
   </div>
   <div id="highlights" hidden>
     <h2 class="sec-h" style="margin-top:0" data-i18n="secView">In this map view</h2>
@@ -632,7 +637,7 @@ const I18N = {
     camLive: "▶ ภาพสด", camOpen: "เปิดกล้อง ↗",
     wallTitle: "กล้องทั้งหมดในพื้นที่ที่แสดง", layers: "ชั้นข้อมูล", loading: "กำลังโหลดกล้อง…",
     hSensors: "เซนเซอร์วัดน้ำ", hReports: "รายงาน", hWeather: "สภาพอากาศ",
-    hlBtn: "สรุปสถานการณ์", hlNone: "ไม่มีจุดที่น่ากังวลในพื้นที่นี้ ลองซูมออกหรือเปิดชั้นข้อมูลเพิ่ม",
+    hlBtn: "สรุป", hlNone: "ไม่มีจุดที่น่ากังวลในพื้นที่นี้ ลองซูมออกหรือเปิดชั้นข้อมูลเพิ่ม",
     hlRivers: "แม่น้ำ", hlCanals: "คลอง", hlRoads: "ถนน", hlRain: "ฝน", hlReports: "ประชาชน", hlHwy: "ทางหลวง",
     hlDams: "เขื่อน", hlCams: "กล้อง", hlEvents: "รายงานถนน",
     up: n => `↑ เพิ่ม ${n}`, down: n => `↓ ลด ${n}`, flat: n => `→ ทรงตัว ${n}`,
@@ -2271,7 +2276,7 @@ function applyLang() {
   if (places.length) renderPlaces();
   renderKey();
   for (const o of $("#win").options) o.textContent = t("winOpt", o.value);
-  $("#langbtn").textContent = t("langBtn");
+  $("#langbtn").title = t("langAria");
   $("#langbtn").lang = lang === "th" ? "en" : "th";
   $("#langbtn").setAttribute("aria-label", t("langAria"));
   if (cams.length) draw();
