@@ -118,7 +118,11 @@
   .camthumbs img, .camthumbs .ph { width:100%; aspect-ratio:16/10; object-fit:cover; display:block; background:#000 }
   .camthumbs .ph { display:grid; place-items:center; color:#fff; font-size:13px; background:#2a2a28 }
   .camthumbs span { padding:6px 8px; font-size:12.5px; line-height:1.3 }
-  .camthumbs .noimg img { display:none } .camthumbs button:not(.noimg) .ph.fb { display:none }
+  .camthumbs video { width:100%; aspect-ratio:16/10; object-fit:cover; display:block; background:#000 }
+  .camthumbs button { position:relative }
+  .camthumbs .has .ph { display:none }
+  .camthumbs .live::after { content:"▶ LIVE"; position:absolute; top:6px; left:6px; padding:2px 6px; border-radius:4px;
+                            background:var(--live); color:#fff; font:700 11px/1.3 var(--mono) }
   /* symbol key */
   .keymap summary { cursor:pointer; font-weight:600; font-size:14px; padding:8px 0; list-style-position:inside }
   .keymap ul { list-style:none; margin:4px 0 0; padding:0; display:grid; gap:8px; font-size:13.5px }
@@ -180,6 +184,8 @@
     #map { left:400px }
     #bar #highlights, #bar #filters { max-height:none; overflow:visible }
     #bar #highlights { padding:12px 2px 4px }
+    body #panel { left:0; right:auto; width:400px; top:var(--barh, 124px); height:auto; bottom:0; border-left:0;
+             border-top:1px solid var(--line); border-right:1px solid var(--line); box-shadow:none; transform:translateX(-105%) }
     #bar .row2 .key:not(.ico) { flex:1 1 auto; justify-content:center }
   }
   /* phones: search gets its own row so the buttons don't squeeze it */
@@ -958,7 +964,7 @@ const Locate = L.Control.extend({ options: { position: "bottomright" }, onAdd() 
   const b = L.DomUtil.create("button"); b.id = "locate";
   b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22"/></svg>';
   L.DomEvent.disableClickPropagation(b);
-  b.onclick = () => { b.classList.add("busy"); map.locate({ setView: true, maxZoom: 14, enableHighAccuracy: true }); };
+  b.onclick = () => { b.classList.add("busy"); map.locate({ enableHighAccuracy: true }); };
   return b;
 } });
 const AddPhoto = L.Control.extend({ options: { position: "bottomright" }, onAdd() {
@@ -975,7 +981,7 @@ map.on("locationfound", e => {
   me?.remove(); meRing?.remove();
   meRing = L.circle(e.latlng, { radius: e.accuracy, weight: 1, color: css("--accent"), fillOpacity: .08, interactive: false }).addTo(map);
   me = L.marker(e.latlng, { icon: L.divIcon({ className: "me", iconSize: [16, 16] }), zIndexOffset: 1100, interactive: false }).addTo(map);
-  showArea({ y: e.latlng.lat, x: e.latlng.lng, name: t("myLocation") });
+  map.setView(e.latlng, Math.max(map.getZoom(), matchMedia("(max-width: 720px)").matches ? 13 : 14));
   track("locate");
 });
 // On load: jump to the viewer (the browser asks first; nothing leaves the device),
@@ -1747,6 +1753,9 @@ async function mountTrend(box, hours = 24, popup = box._popup) {
   // re-renders the content and would wipe this chart.
   popup?._updateLayout?.(); popup?._updatePosition?.();
 }
+// desktop: the detail pane starts just under the search and buttons
+const setBarH = () => document.documentElement.style.setProperty("--barh", Math.round($("#bar .row2").getBoundingClientRect().bottom + 8) + "px");
+setBarH(); addEventListener("resize", setBarH);
 new MutationObserver(() => document.body.classList.toggle("sheet", $("#panel").classList.contains("open")))
   .observe($("#panel"), { attributes: true, attributeFilter: ["class"] });
 // Marker details open in the side panel (a bottom sheet on phones) rather than a
@@ -1771,12 +1780,12 @@ map.on("popupopen", e => {
       if (matchMedia("(max-width: 720px)").matches) {
         const top = $("#bar").getBoundingClientRect().bottom, bottom = h - P.offsetHeight;
         if (pt.y < top + 20 || pt.y > bottom - 20) map.panBy([0, pt.y - (top + bottom) / 2]);
-      } else if (pt.x > w - P.offsetWidth - 40) map.panBy([pt.x - (w - P.offsetWidth) / 2, 0]);
+      }
     });
   }
   box.querySelectorAll(".trend").forEach(b => mountTrend(b, 24, null));
   if (ll) {
-    nearCams(box, ll.lat, ll.lng);
+    cleanup = nearCams(box, ll.lat, ll.lng);   // stops the thumbnail streams when the panel moves on
     const more = document.createElement("div");
     more.className = "around";
     more.innerHTML = `<h2 class="sec-h">${t("aroundHere")}</h2>` + placeSummary({ y: ll.lat, x: ll.lng }, true);
@@ -1784,23 +1793,56 @@ map.on("popupopen", e => {
     box.append(more);
   }
 });
-// Up to 4 cameras within 2 km, as pictures: a snapshot where the camera has one,
-// a YouTube still, or a plain tile for live-video-only cameras. Tap = open it.
+// Up to 4 working cameras within 5 km, as pictures: a snapshot, a YouTube still,
+// or the first frame of a live stream (then paused - tap plays it live). Dead
+// cameras (iTIC's snapshot-only ones often are) drop out for the next nearest;
+// BMA's link-only cameras, which have no picture, go last. Returns a stop function.
 function nearCams(box, lat, lon) {
-  const nc = cams.filter(c => c.y != null).map(c => [distKm(lat, lon, c.y, c.x), c]).filter(([d]) => d <= 2)
-    .sort((a, z) => a[0] - z[0]).slice(0, 4);
-  if (!nc.length) return;
+  // central Bangkok is almost all BMA cameras (no picture outside BMA's own site),
+  // so look further for ones that can show a picture, and fill up with BMA links
+  const all = cams.filter(c => c.y != null).map(c => [distKm(lat, lon, c.y, c.x), c]).sort((a, z) => a[0] - z[0]);
+  const queue = [...all.filter(([d, c]) => d <= 5 && (c.i || c.h || c.yt)).slice(0, 12), ...all.filter(([d, c]) => d <= 2 && !(c.i || c.h || c.yt)).slice(0, 4)];
+  if (!queue.length) return () => {};
   const km = d => d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
   const sec = document.createElement("section");
   sec.className = "nearcams";
-  sec.innerHTML = `<h3>${t("pNearCams")}</h3><div class="camthumbs">` + nc.map(([d, c], i) => {
-    const img = c.i || (c.yt ? `https://i.ytimg.com/vi/${encodeURIComponent(c.yt)}/mqdefault.jpg` : null);
-    return `<button data-i="${i}">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ""}`
-      + `<i class="ph${img ? " fb" : ""}">${c.h ? t("camLive") : t("camOpen")}</i><span>${esc(c.n)} · ${km(d)}</span></button>`;
-  }).join("") + "</div>";
-  sec.querySelectorAll("img").forEach(im => im.onerror = () => im.parentElement.classList.add("noimg"));
-  sec.querySelectorAll("button").forEach(b => b.onclick = () => openCam(nc[+b.dataset.i][1]));
+  sec.innerHTML = `<h3>${t("pNearCams")}</h3><div class="camthumbs"></div>`;
+  const grid = sec.querySelector(".camthumbs"), stops = [];
+  const next = () => {
+    const it = queue.shift();
+    if (it) add(...it); else if (!grid.children.length) sec.remove();
+  };
+  const add = (d, c) => {
+    const b = document.createElement("button");
+    b.innerHTML = `<i class="ph">${c.h ? t("camLive") : t("camOpen")}</i><span>${esc(c.n)} · ${km(d)}</span>`;
+    b.onclick = () => openCam(c);
+    grid.append(b);
+    const fail = () => { b.remove(); next(); };
+    const show = el => { b.prepend(el); b.classList.add("has"); };
+    const img = c.h ? null : c.i || (c.yt ? `https://i.ytimg.com/vi/${encodeURIComponent(c.yt)}/mqdefault.jpg` : null);
+    if (img) {
+      const im = new Image();
+      im.alt = "";
+      im.onload = () => im.naturalWidth > 16 ? show(im) : fail();   // iTIC sends a 1-px / "not found" body when a camera is down
+      im.onerror = fail;
+      im.src = img;
+    } else if (c.h) {
+      const v = Object.assign(document.createElement("video"), { muted: true, playsInline: true, preload: "auto" });
+      let h;
+      const stop = () => { try { h?.destroy(); } catch {} v.removeAttribute("src"); v.load(); };
+      stops.push(stop);
+      v.addEventListener("loadeddata", () => { v.pause(); h?.stopLoad(); show(v); b.classList.add("live"); }, { once: true });
+      if (window.Hls?.isSupported()) {
+        h = new Hls({ maxBufferLength: 4 });
+        h.on(Hls.Events.ERROR, (e, dd) => { if (dd.fatal) { stop(); fail(); } });
+        h.loadSource(c.h); h.attachMedia(v);
+      } else if (v.canPlayType("application/vnd.apple.mpegurl")) { v.src = c.h; v.onerror = () => { stop(); fail(); }; }
+      v.play().catch(() => {});
+    }
+  };
+  for (let i = 0; i < 4; i++) next();
   box.append(sec);
+  return () => stops.forEach(f => f());
 }
 
 let floodData = null, flood = null;   // flood: null (off) | "error" | {counts, times}
